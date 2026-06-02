@@ -6,22 +6,8 @@
 # O Coolify cuida do HTTPS (Let's Encrypt) e do proxy (Traefik). Ver DEPLOY.md.
 
 services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sos}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
-      POSTGRES_DB: ${POSTGRES_DB:-sosvision}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sos} -d ${POSTGRES_DB:-sosvision}"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
-
+  # Banco migrado para Supabase (projeto sos-vision-defesa-civil, session pooler).
+  # O Postgres local do compose foi removido; DATABASE_URL aponta para o Supabase.
   redis:
     image: redis:7
     healthcheck:
@@ -38,7 +24,6 @@ services:
     expose:
       - "8000"
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     restart: unless-stopped
 
@@ -47,7 +32,6 @@ services:
       context: ./worker
     env_file: .env
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     restart: unless-stopped
 
@@ -61,6 +45,3 @@ services:
     expose:
       - "80"
     restart: unless-stopped
-
-volumes:
-  pgdata:
