@@ -4,8 +4,22 @@ import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Rota } from "../types"
 
 // Basemaps selecionáveis — todos sem API key.
 const STYLES: Record<string, any> = {
-  escuro: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  claro: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  // Ruas: Carto Voyager — vetorial, colorido e limpo (visual tipo OpenStreetMap).
+  ruas: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+  // OSM: o mapa clássico do openstreetmap.org (tiles raster oficiais).
+  osm: {
+    version: 8,
+    sources: {
+      osm: {
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "© OpenStreetMap contributors",
+      },
+    },
+    layers: [{ id: "osm", type: "raster", source: "osm" }],
+  },
   satelite: {
     version: 8,
     sources: {
@@ -28,8 +42,8 @@ const STYLES: Record<string, any> = {
 };
 
 const ESTILOS_UI: { id: keyof typeof STYLES; rotulo: string; icone: string }[] = [
-  { id: "escuro", rotulo: "Escuro", icone: "🌙" },
-  { id: "claro", rotulo: "Claro", icone: "☀️" },
+  { id: "ruas", rotulo: "Ruas", icone: "🗺️" },
+  { id: "osm", rotulo: "OSM", icone: "🛣️" },
   { id: "satelite", rotulo: "Satélite", icone: "🛰️" },
 ];
 
@@ -186,7 +200,7 @@ export default function CommandMap(props: Props) {
   const domMarkers = useRef<maplibregl.Marker[]>([]);
   const dataRef = useRef(props);
   dataRef.current = props;
-  const [estilo, setEstilo] = useState<keyof typeof STYLES>("satelite");
+  const [estilo, setEstilo] = useState<keyof typeof STYLES>("ruas");
 
   function aplicar() {
     const m = map.current;
@@ -236,7 +250,7 @@ export default function CommandMap(props: Props) {
     if (!container.current || map.current) return;
     const m = new maplibregl.Map({
       container: container.current,
-      style: STYLES.satelite,
+      style: STYLES.ruas,
       center: [-51.9614, -29.4669],
       zoom: 13,
     });

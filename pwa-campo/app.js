@@ -102,7 +102,7 @@ function ensureMap() {
   if (_map) return _map;
   _map = new maplibregl.Map({
     container: "mapa",
-    style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
     center: [-51.96, -29.46], zoom: 12,
   });
   _map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");

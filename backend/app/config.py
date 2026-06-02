@@ -21,9 +21,10 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_ID: str = ""
     WHATSAPP_VERIFY_TOKEN: str = "troque-este-token"
 
-    # IA
+    # IA — usa OpenAI se OPENAI_API_KEY; senão Anthropic; senão heurístico.
+    OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    CLASSIFIER_MODEL: str = "claude-haiku-4-5-20251001"
+    CLASSIFIER_MODEL: str = ""  # vazio = default por provedor (OpenAI: gpt-4o-mini)
 
     # Roteamento ("Traçar rota"). Sem chave, usa OSRM público (fallback).
     ORS_API_KEY: str = ""   # OpenRouteService — habilita avoid de vias bloqueadas (fase 2)
