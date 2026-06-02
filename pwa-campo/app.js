@@ -3,7 +3,14 @@
 
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("token");
-const API = params.get("api") || "http://localhost:8000";
+// API: usa ?api= se vier no link; senão deduz do próprio domínio (api.<host>);
+// só cai em localhost no dev. Permite link curto (/campo/?token=campo-b01).
+const _h = location.hostname;
+const API = params.get("api") || (
+  /^(localhost|127\.|0\.0\.0\.0$)/.test(_h)
+    ? "http://localhost:8000"
+    : `${location.protocol}//api.${_h}`
+);
 const ACTION_QUEUE = `campo_actions_${TOKEN}`;
 
 const $ = (id) => document.getElementById(id);

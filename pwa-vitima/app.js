@@ -8,7 +8,15 @@
 
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("token");
-const API = params.get("api") || "http://localhost:8000";
+// API: usa ?api= se vier no link; senão deduz do próprio domínio (api.<host>);
+// só cai em localhost no ambiente de dev. Assim o link da vítima pode ser curto
+// (/vitima/?token=...) sem depender do parâmetro &api=.
+const _h = location.hostname;
+const API = params.get("api") || (
+  /^(localhost|127\.|0\.0\.0\.0$)/.test(_h)
+    ? "http://localhost:8000"
+    : `${location.protocol}//api.${_h}`
+);
 const QUEUE_KEY = `sos_queue_${TOKEN}`;
 
 const $ = (id) => document.getElementById(id);
