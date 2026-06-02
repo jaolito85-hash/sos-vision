@@ -69,6 +69,15 @@ export interface Rota {
   distancia_m: number;
   duracao_s: number;
   fonte: string; // ors | osrm
+  evitou: number; // nº de vias bloqueadas desviadas
+}
+
+export interface ViaBloqueada {
+  id: string;
+  lat: number;
+  lng: number;
+  motivo: string | null;
+  ts: string;
 }
 
 export interface Recomendacao {

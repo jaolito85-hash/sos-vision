@@ -5,7 +5,7 @@ import DetailPanel from "./components/DetailPanel";
 import AlertPanel from "./components/AlertPanel";
 import { api } from "./api";
 import { connectRealtime } from "./realtime";
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada } from "./types";
 
 const SEV_ORDEM = ["normal", "atencao", "alerta", "inundacao"];
 
@@ -16,17 +16,18 @@ export default function App() {
   const [estacoes, setEstacoes] = useState<Estacao[]>([]);
   const [geofencesRaw, setGeofencesRaw] = useState<Geofence[]>([]);
   const [recomendacoes, setRecomendacoes] = useState<Recomendacao[]>([]);
+  const [vias, setVias] = useState<ViaBloqueada[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rota, setRota] = useState<Rota | null>(null);
   const [online, setOnline] = useState(false);
 
   const carregar = useCallback(async () => {
-    const [c, e, a, est, gf, rec] = await Promise.all([
+    const [c, e, a, est, gf, rec, vb] = await Promise.all([
       api.listarChamados(), api.equipes(), api.abrigos(),
-      api.estacoes(), api.geofences(), api.recomendacoes(),
+      api.estacoes(), api.geofences(), api.recomendacoes(), api.viasBloqueadas(),
     ]);
     setChamados(c); setEquipes(e); setAbrigos(a);
-    setEstacoes(est); setGeofencesRaw(gf); setRecomendacoes(rec);
+    setEstacoes(est); setGeofencesRaw(gf); setRecomendacoes(rec); setVias(vb);
   }, []);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function App() {
     const disconnect = connectRealtime((ev) => {
       setOnline(true);
       if (["chamado_novo", "chamado_estado", "ponto_gps", "equipe_pos", "abrigo_update",
-           "fila_repontuada", "hidro_leitura", "recomendacao_evacuacao"].includes(ev.type)) {
+           "fila_repontuada", "hidro_leitura", "recomendacao_evacuacao", "via_bloqueada"].includes(ev.type)) {
         carregar().catch(() => {});
       }
     });
@@ -122,6 +123,7 @@ export default function App() {
             selectedId={selectedId}
             onSelect={selecionar}
             rota={rota}
+            vias={vias}
           />
         </main>
 

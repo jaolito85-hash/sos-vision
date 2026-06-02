@@ -49,6 +49,28 @@ async def atualizar_posicao(token: str, p: PosIn):
     return {"ok": True}
 
 
+class ViaBloqueadaIn(BaseModel):
+    lat: float
+    lng: float
+    motivo: str | None = None
+
+
+@router.post("/por-token/{token}/via-bloqueada")
+async def reportar_via_bloqueada(token: str, inp: ViaBloqueadaIn):
+    """A frota marca a posição atual como via intransitável (alagada/obstruída).
+    As próximas rotas (fase 2) passam a desviar deste ponto."""
+    eq = await db.fetchrow("SELECT id, tenant_id FROM equipes_campo WHERE token=$1", token)
+    if not eq:
+        raise HTTPException(404, "Equipe não encontrada")
+    row = await db.fetchrow(
+        """INSERT INTO vias_bloqueadas (tenant_id, lat, lng, motivo, reportado_por)
+           VALUES ($1,$2,$3,$4,$5) RETURNING id""",
+        eq["tenant_id"], inp.lat, inp.lng, inp.motivo, eq["id"],
+    )
+    await hub.publish("via_bloqueada", {"id": str(row["id"]), "lat": inp.lat, "lng": inp.lng})
+    return {"ok": True, "id": str(row["id"])}
+
+
 class DespachoEstadoIn(BaseModel):
     estado: str  # a_caminho | no_local | resgatado
 

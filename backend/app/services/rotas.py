@@ -1,12 +1,12 @@
 """Roteamento rua-a-rua para 'Traçar rota' (Sala + Campo).
 
-Motor primário: OpenRouteService (precisa ORS_API_KEY) — escolhido porque suporta
-`avoid_polygons`, o que permitirá na FASE 2 evitar `vias_bloqueadas` + área de
-inundação (geofence). Sem a chave, cai automaticamente no OSRM público (demo),
-para a feature já funcionar antes de configurar a chave.
+Motor primário: OpenRouteService (ORS_API_KEY) — suporta `avoid_polygons`, usado
+na FASE 2 para DESVIAR das vias bloqueadas reportadas pela frota (`vias_bloqueadas`).
+Sem a chave, cai no OSRM público (que NÃO suporta avoid → ignora os bloqueios).
 
-Retorno normalizado dos dois motores:
-    { "geometry": <GeoJSON LineString>, "distancia_m": int, "duracao_s": int, "fonte": str }
+Retorno normalizado:
+    { "geometry": <GeoJSON LineString>, "distancia_m": int, "duracao_s": int,
+      "fonte": "ors"|"osrm", "evitou": int }
 """
 import httpx
 from ..config import settings
@@ -14,25 +14,40 @@ from ..config import settings
 ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving"
 
+# Raio do buffer (em graus, ~44 m) ao redor de cada ponto bloqueado.
+_BUF = 0.0004
+
 
 class RotaIndisponivel(Exception):
     pass
 
 
-async def tracar(de_lat: float, de_lng: float, para_lat: float, para_lng: float) -> dict:
-    """Traça a rota de carro entre dois pontos. ORS se houver chave; senão OSRM."""
+def _buffer(lat: float, lng: float) -> list:
+    """Quadradinho (Polygon ring) ao redor de um ponto bloqueado."""
+    r = _BUF
+    return [[[lng - r, lat - r], [lng + r, lat - r], [lng + r, lat + r],
+             [lng - r, lat + r], [lng - r, lat - r]]]
+
+
+def _avoid_multipolygon(pontos: list) -> dict:
+    return {"type": "MultiPolygon", "coordinates": [_buffer(lat, lng) for (lat, lng) in pontos]}
+
+
+async def tracar(de_lat, de_lng, para_lat, para_lng, evitar: list | None = None) -> dict:
+    """Traça rota de carro. `evitar` = lista de (lat,lng) de vias bloqueadas (só ORS)."""
     if settings.ORS_API_KEY:
         try:
-            return await _ors(de_lat, de_lng, para_lat, para_lng)
+            return await _ors(de_lat, de_lng, para_lat, para_lng, evitar)
         except Exception:
-            # Resiliência: se o ORS falhar (cota, indisponível), tenta o OSRM.
+            # Se o ORS falhar (cota/indisponível/avoid impossível), tenta o OSRM (sem avoid).
             pass
     return await _osrm(de_lat, de_lng, para_lat, para_lng)
 
 
-async def _ors(de_lat, de_lng, para_lat, para_lng) -> dict:
+async def _ors(de_lat, de_lng, para_lat, para_lng, evitar: list | None) -> dict:
     body = {"coordinates": [[de_lng, de_lat], [para_lng, para_lat]]}
-    # FASE 2: body["options"] = {"avoid_polygons": <MultiPolygon de vias_bloqueadas + geofence>}
+    if evitar:
+        body["options"] = {"avoid_polygons": _avoid_multipolygon(evitar)}
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.post(
             ORS_URL,
@@ -48,6 +63,7 @@ async def _ors(de_lat, de_lng, para_lat, para_lng) -> dict:
         "distancia_m": round(summ.get("distance", 0)),
         "duracao_s": round(summ.get("duration", 0)),
         "fonte": "ors",
+        "evitou": len(evitar or []),
     }
 
 
@@ -65,4 +81,5 @@ async def _osrm(de_lat, de_lng, para_lat, para_lng) -> dict:
         "distancia_m": round(rt.get("distance", 0)),
         "duracao_s": round(rt.get("duration", 0)),
         "fonte": "osrm",
+        "evitou": 0,
     }

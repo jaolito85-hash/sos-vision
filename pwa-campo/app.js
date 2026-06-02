@@ -155,6 +155,22 @@ function desenharRota(m, rota, nome) {
 window.abrirRota = abrirRota;
 document.getElementById("fecharMapa").onclick = () => { $("mapaWrap").style.display = "none"; };
 
+// A frota marca a posição atual como via intransitável (rotas passam a desviar).
+async function reportarVia() {
+  if (!minhaPos) { alert("Aguardando seu GPS. Permita a localização e tente de novo."); return; }
+  const motivo = prompt("Motivo (ex.: alagada, queda de árvore, deslizamento):", "alagada");
+  if (motivo === null) return;
+  try {
+    const r = await fetch(`${API}/equipes/por-token/${TOKEN}/via-bloqueada`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat: minhaPos.lat, lng: minhaPos.lng, motivo }),
+    });
+    if (!r.ok) throw new Error();
+    alert("✅ Via bloqueada reportada. As próximas rotas vão desviar deste ponto.");
+  } catch { alert("Falha ao reportar. Tente novamente."); }
+}
+document.getElementById("reportarVia").onclick = reportarVia;
+
 window.addEventListener("online", flushActions);
 render();
 setInterval(render, 10000);

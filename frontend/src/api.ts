@@ -1,4 +1,4 @@
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada } from "./types";
 
 const API = import.meta.env.VITE_API ?? "http://localhost:8000";
 
@@ -30,6 +30,7 @@ export const api = {
   abrigos: () => fetch(`${API}/abrigos`).then(j<Abrigo[]>),
   estacoes: () => fetch(`${API}/hidrologia/estacoes`).then(j<Estacao[]>),
   geofences: () => fetch(`${API}/eventos/geofences`).then(j<Geofence[]>),
+  viasBloqueadas: () => fetch(`${API}/eventos/vias-bloqueadas`).then(j<ViaBloqueada[]>),
   recomendacoes: () => fetch(`${API}/hidrologia/recomendacoes`).then(j<Recomendacao[]>),
   broadcast: (geofence_id: string, evento_id?: string) =>
     fetch(`${API}/eventos/broadcast`, {

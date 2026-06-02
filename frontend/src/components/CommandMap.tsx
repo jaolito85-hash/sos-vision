@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Rota } from "../types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Rota, ViaBloqueada } from "../types";
 
 // Basemaps selecionáveis — todos sem API key.
 const STYLES: Record<string, any> = {
@@ -69,6 +69,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   rota?: Rota | null;
+  vias?: ViaBloqueada[];
 }
 
 function parsePoly(p: any): any {
@@ -205,7 +206,7 @@ export default function CommandMap(props: Props) {
   function aplicar() {
     const m = map.current;
     if (!m || !ready.current || !m.getSource("geofences")) return;
-    const { chamados, equipes, abrigos, estacoes, geofences, selectedId } = dataRef.current;
+    const { chamados, equipes, abrigos, estacoes, geofences, selectedId, vias } = dataRef.current;
 
     (m.getSource("geofences") as maplibregl.GeoJSONSource).setData(geofencesFC(geofences));
     (m.getSource("chamados") as maplibregl.GeoJSONSource).setData(chamadosFC(chamados));
@@ -233,6 +234,11 @@ export default function CommandMap(props: Props) {
       if (e.lat == null) return;
       const el = domMarker(e.status === "disponivel" ? "#16a34a" : "#6b7280", "🚤", `${e.nome} (${e.status})`);
       domMarkers.current.push(new maplibregl.Marker({ element: el }).setLngLat([e.lng!, e.lat]).addTo(m));
+    });
+    (vias ?? []).forEach((v) => {
+      if (v.lat == null) return;
+      const el = domMarker("#b45309", "🚧", v.motivo ? `Via bloqueada: ${v.motivo}` : "Via bloqueada");
+      domMarkers.current.push(new maplibregl.Marker({ element: el }).setLngLat([v.lng, v.lat]).addTo(m));
     });
   }
 

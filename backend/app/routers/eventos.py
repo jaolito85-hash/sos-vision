@@ -21,6 +21,16 @@ async def geofences():
     return [dict(r) for r in rows]
 
 
+@router.get("/vias-bloqueadas")
+async def vias_bloqueadas():
+    """Vias intransitáveis reportadas pela frota — marcadas no mapa da Sala
+    e usadas para desviar as rotas (fase 2)."""
+    rows = await db.fetch(
+        "SELECT id, lat, lng, motivo, ts FROM vias_bloqueadas WHERE lat IS NOT NULL ORDER BY ts DESC"
+    )
+    return [dict(r) for r in rows]
+
+
 class BroadcastIn(BaseModel):
     geofence_id: str
     template: str = "alerta_enchente"

@@ -98,9 +98,14 @@ export default function DetailPanel({ chamado, equipes, rota, onRota, onChanged 
             🧭 Traçar rota até a vítima
           </button>
           {rota && (
-            <div className="flex items-center justify-between mt-1 text-xs text-slate-300">
-              <span>{(rota.distancia_m / 1000).toFixed(1)} km · ~{Math.round(rota.duracao_s / 60)} min <span className="text-slate-500">({rota.fonte})</span></span>
-              <button onClick={() => onRota(null)} className="text-slate-500 hover:text-slate-300 underline">limpar</button>
+            <div className="mt-1 text-xs text-slate-300">
+              <div className="flex items-center justify-between">
+                <span>{(rota.distancia_m / 1000).toFixed(1)} km · ~{Math.round(rota.duracao_s / 60)} min <span className="text-slate-500">({rota.fonte})</span></span>
+                <button onClick={() => onRota(null)} className="text-slate-500 hover:text-slate-300 underline">limpar</button>
+              </div>
+              {rota.evitou > 0 && (
+                <div className="text-amber-400 mt-0.5">🚧 desviando de {rota.evitou} via(s) bloqueada(s)</div>
+              )}
             </div>
           )}
         </div>
