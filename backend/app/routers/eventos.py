@@ -58,17 +58,22 @@ async def broadcast(inp: BroadcastIn):
     ch = get_channel()
     texto = ("⚠️ Alerta da Defesa Civil: cheia forte prevista para sua região. "
              "Você está bem? 1) Em casa seguro  2) Já saí  3) PRECISO DE AJUDA")
+    entregues = 0
     for p in alvos:
-        await ch.send_buttons(p["telefone"], texto, ["1 Em casa", "2 Já saí", "3 Ajuda"])
+        try:
+            await ch.send_buttons(p["telefone"], texto, ["1 Em casa", "2 Já saí", "3 Ajuda"])
+            entregues += 1  # canal aceitou o envio (não é recibo de leitura)
+        except Exception:
+            pass  # um número inválido não derruba o disparo em massa
 
     bc = await db.fetchrow(
-        """INSERT INTO broadcasts (tenant_id, evento_id, template, geofence_id, enviados)
-           VALUES ($1,$2,$3,$4,$5) RETURNING id""",
-        gf["tenant_id"], inp.evento_id, inp.template, inp.geofence_id, len(alvos),
+        """INSERT INTO broadcasts (tenant_id, evento_id, template, geofence_id, enviados, entregues)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id""",
+        gf["tenant_id"], inp.evento_id, inp.template, inp.geofence_id, len(alvos), entregues,
     )
     await db.execute(
         "INSERT INTO eventos_audit (tenant_id, ator, acao, alvo, detalhe) VALUES ($1,$2,$3,$4,$5)",
         gf["tenant_id"], "operador", "broadcast_evacuacao", str(bc["id"]),
         __import__("json").dumps({"geofence": inp.geofence_id, "enviados": len(alvos)}),
     )
-    return {"broadcast_id": str(bc["id"]), "enviados": len(alvos)}
+    return {"broadcast_id": str(bc["id"]), "enviados": len(alvos), "entregues": entregues}

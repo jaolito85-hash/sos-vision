@@ -32,6 +32,25 @@ async def leitura(estacao_id: str, inp: LeituraIn):
     return res
 
 
+class PrevisaoIn(BaseModel):
+    chuva_prevista_mm: float
+    vazao_m3s: float | None = None
+    vazao_pico_m3s: float | None = None
+    tendencia: str | None = None  # subindo | estavel | descendo
+
+
+@router.post("/estacoes/{estacao_id}/previsao")
+async def previsao(estacao_id: str, inp: PrevisaoIn):
+    """Ingere previsão climática/hidrológica (Open-Meteo, via worker). Atualiza a
+    estação e pode disparar o gatilho preventivo (recomenda evacuação à Sala)."""
+    try:
+        return await hidrologia.ingerir_previsao(
+            estacao_id, inp.chuva_prevista_mm, inp.vazao_m3s, inp.vazao_pico_m3s, inp.tendencia
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
 @router.get("/recomendacoes")
 async def recomendacoes():
     """Eventos hidrológicos ativos (alerta/inundação) aguardando decisão de evacuação.

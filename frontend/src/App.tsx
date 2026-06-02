@@ -3,6 +3,7 @@ import CommandMap from "./components/CommandMap";
 import QueuePanel from "./components/QueuePanel";
 import DetailPanel from "./components/DetailPanel";
 import ResourcePanel from "./components/ResourcePanel";
+import HidroPanel from "./components/HidroPanel";
 import AlertPanel from "./components/AlertPanel";
 import { api } from "./api";
 import { connectRealtime } from "./realtime";
@@ -20,7 +21,7 @@ export default function App() {
   const [vias, setVias] = useState<ViaBloqueada[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rota, setRota] = useState<Rota | null>(null);
-  const [abaEsq, setAbaEsq] = useState<"chamados" | "recursos">("chamados");
+  const [abaEsq, setAbaEsq] = useState<"chamados" | "recursos" | "clima">("chamados");
   const [online, setOnline] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -120,11 +121,17 @@ export default function App() {
               className={`flex-1 px-3 py-2 ${abaEsq === "recursos" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
               Recursos
             </button>
+            <button onClick={() => setAbaEsq("clima")}
+              className={`flex-1 px-3 py-2 ${abaEsq === "clima" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
+              Clima/Rios
+            </button>
           </div>
           <div className="flex-1 min-h-0">
             {abaEsq === "chamados"
               ? <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={selecionar} />
-              : <ResourcePanel equipes={equipes} abrigos={abrigos} />}
+              : abaEsq === "recursos"
+              ? <ResourcePanel equipes={equipes} abrigos={abrigos} />
+              : <HidroPanel estacoes={estacoes} />}
           </div>
         </aside>
 

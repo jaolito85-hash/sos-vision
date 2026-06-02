@@ -13,12 +13,17 @@ Em produção: quebrar em consumidores de fila Redis por tipo de tarefa.
 import asyncio
 import json
 import os
+import time
 import asyncpg
+import httpx
 import redis.asyncio as aioredis
+import openmeteo
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://sos:sos@localhost:5432/sosvision")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 INTERVALO_S = 30
+INTERVALO_HIDRO_S = int(os.getenv("INTERVALO_HIDRO_S", "600"))  # puxa clima/vazão a cada 10min
 ABERTOS = ("aguardando", "triado", "despachado")
 
 
@@ -38,13 +43,40 @@ async def repontuar(pool, r):
         print(f"[worker] re-pontuados {len(atualizados)} chamados")
 
 
+async def puxar_clima_hidro(pool):
+    """Puxa chuva (Forecast) + vazão (Flood) do Open-Meteo para cada estação com
+    coordenadas e empurra a previsão ao backend, que aciona o gatilho preventivo."""
+    async with pool.acquire() as conn:
+        estacoes = await conn.fetch(
+            "SELECT id, nome, lat, lng FROM estacoes_hidrologicas WHERE lat IS NOT NULL AND lng IS NOT NULL"
+        )
+    async with httpx.AsyncClient(timeout=25) as client:
+        for e in estacoes:
+            chuva = await openmeteo.chuva_prevista_mm(e["lat"], e["lng"])
+            vaz = await openmeteo.vazao_rio(e["lat"], e["lng"])
+            try:
+                await client.post(f"{BACKEND_URL}/hidrologia/estacoes/{e['id']}/previsao", json={
+                    "chuva_prevista_mm": chuva or 0.0,
+                    "vazao_m3s": vaz["vazao_m3s"],
+                    "vazao_pico_m3s": vaz["vazao_pico_m3s"],
+                    "tendencia": vaz["tendencia"],
+                })
+                print(f"[worker] previsao {e['nome']}: chuva={chuva}mm vazao={vaz['vazao_m3s']} tend={vaz['tendencia']}")
+            except Exception as ex:
+                print(f"[worker] falha previsao {e['nome']}: {ex}")
+
+
 async def main():
     pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=4)
     r = aioredis.from_url(REDIS_URL, decode_responses=True)
     print("[worker] defesa_civil iniciado.")
+    ultimo_hidro = 0.0
     while True:
         try:
             await repontuar(pool, r)
+            if time.monotonic() - ultimo_hidro >= INTERVALO_HIDRO_S:
+                await puxar_clima_hidro(pool)
+                ultimo_hidro = time.monotonic()
         except Exception as e:  # nunca derruba o worker
             print(f"[worker] erro: {e}")
         await asyncio.sleep(INTERVALO_S)

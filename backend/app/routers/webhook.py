@@ -30,9 +30,28 @@ def _classificar_resposta(texto: str) -> str:
     return "texto"
 
 
+async def _registrar_resposta_broadcast(tenant_id, telefone: str):
+    """Se quem respondeu foi alvo de um broadcast recente (mesma geofence), conta a
+    resposta — fecha a malha enviados → respondidos do alerta em massa."""
+    try:
+        row = await db.fetchrow(
+            """SELECT b.id FROM pessoas_protegidas p
+               JOIN broadcasts b ON b.geofence_id = p.geofence_id AND b.tenant_id = p.tenant_id
+               WHERE p.tenant_id=$1 AND p.telefone=$2
+                 AND b.criado_em > now() - interval '24 hours'
+               ORDER BY b.criado_em DESC LIMIT 1""",
+            tenant_id, telefone,
+        )
+        if row:
+            await db.execute("UPDATE broadcasts SET respondidos = respondidos + 1 WHERE id=$1", row["id"])
+    except Exception:
+        pass  # rastreamento é best-effort; nunca bloqueia o atendimento
+
+
 async def _rotear(tenant_id, telefone: str, texto: str | None,
                   lat: float | None = None, lng: float | None = None):
     """Lógica única de roteamento, compartilhada por todos os canais de entrada."""
+    await _registrar_resposta_broadcast(tenant_id, telefone)
     ch = get_channel()
 
     # Localização recebida → vira/atualiza chamado de resgate.

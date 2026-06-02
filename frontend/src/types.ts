@@ -54,6 +54,12 @@ export interface Estacao {
   severidade: string; // normal | atencao | alerta | inundacao
   geofence_id: string | null;
   geofence_nome?: string | null;
+  // Previsão (Open-Meteo, via worker)
+  chuva_prevista_mm?: number | null;
+  vazao_m3s?: number | null;
+  vazao_pico_m3s?: number | null;
+  tendencia?: string | null; // subindo | estavel | descendo
+  prev_severidade?: string | null;
 }
 
 export interface Geofence {

@@ -31,6 +31,60 @@ def escalou(antiga: str, nova: str) -> bool:
     return NIVEIS.index(nova) > NIVEIS.index(antiga)
 
 
+def classificar_clima(chuva_mm: float, tendencia: str | None) -> str:
+    """Severidade PREVENTIVA a partir da chuva prevista (24h) e da tendência da
+    vazão do rio. Limiares iniciais — a Defesa Civil calibra na implantação."""
+    if chuva_mm is None:
+        chuva_mm = 0.0
+    if chuva_mm >= 80:
+        base = "inundacao"
+    elif chuva_mm >= 50:
+        base = "alerta"
+    elif chuva_mm >= 25:
+        base = "atencao"
+    else:
+        base = "normal"
+    # Rio em franca subida agrava um nível (até inundação).
+    if tendencia == "subindo" and base != "inundacao":
+        base = NIVEIS[min(NIVEIS.index(base) + 1, 3)]
+    return base
+
+
+async def ingerir_previsao(estacao_id, chuva_mm: float, vazao: float | None,
+                           vazao_pico: float | None, tendencia: str | None) -> dict:
+    """Atualiza a previsão (Open-Meteo) da estação e dispara o gatilho preventivo
+    se a severidade prevista escalou para alerta/inundação."""
+    est = await db.fetchrow("SELECT * FROM estacoes_hidrologicas WHERE id=$1", estacao_id)
+    if est is None:
+        raise ValueError("Estação inexistente")
+
+    prev_antiga = est["prev_severidade"] or "normal"
+    prev_nova = classificar_clima(chuva_mm, tendencia)
+
+    await db.execute(
+        """UPDATE estacoes_hidrologicas
+           SET chuva_prevista_mm=$1, vazao_m3s=$2, vazao_pico_m3s=$3, tendencia=$4,
+               prev_severidade=$5, prev_atualizado_em=now() WHERE id=$6""",
+        chuva_mm, vazao, vazao_pico, tendencia, prev_nova, estacao_id,
+    )
+    await hub.publish("hidro_previsao", {
+        "estacao_id": str(estacao_id), "nome": est["nome"], "rio": est["rio"],
+        "chuva_prevista_mm": chuva_mm, "vazao_m3s": vazao, "tendencia": tendencia,
+        "prev_severidade": prev_nova, "lat": est["lat"], "lng": est["lng"],
+    })
+
+    subiu = escalou(prev_antiga, prev_nova)
+    evento_id = None
+    if subiu and prev_nova in ("alerta", "inundacao"):
+        est2 = await db.fetchrow("SELECT * FROM estacoes_hidrologicas WHERE id=$1", estacao_id)
+        evento_id = await _processar_gatilho(est2, prev_nova)
+
+    return {
+        "prev_severidade": prev_nova, "anterior": prev_antiga, "escalou": subiu,
+        "evento_id": str(evento_id) if evento_id else None,
+    }
+
+
 async def ingerir_leitura(estacao_id, valor: float) -> dict:
     """Grava a leitura, atualiza a estação e dispara o gatilho se escalou."""
     est = await db.fetchrow("SELECT * FROM estacoes_hidrologicas WHERE id=$1", estacao_id)

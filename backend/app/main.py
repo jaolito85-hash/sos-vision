@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .config import settings
 from .realtime import hub
-from .routers import webhook, chamados, equipes, abrigos, eventos, rastreamento, ws, hidrologia, rotas
+from .routers import webhook, chamados, equipes, abrigos, eventos, rastreamento, ws, hidrologia, rotas, pessoas
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(eventos.router)
 app.include_router(rastreamento.router)
 app.include_router(hidrologia.router)
 app.include_router(rotas.router)
+app.include_router(pessoas.router)
 app.include_router(ws.router)
 
 
