@@ -71,6 +71,7 @@ async function render() {
       <div class="meta"><span class="tag">${CTX[c.contexto_vertical] || c.contexto_vertical || "?"}</span> ${water}</div>
       <div class="meta">estado: ${c.estado_despacho || c.estado} · prioridade ${c.prioridade_score}</div>
       <div class="btns">
+        ${c.lat ? `<button class="b-rota" onclick="abrirRota(${c.lat},${c.lng},'${(c.nome || "Vítima").replace(/'/g, "")}')">🗺️ Traçar rota</button>` : ""}
         <a class="nav" style="text-align:center;text-decoration:none;display:block;line-height:1.4" href="${nav}" target="_blank">🧭 Navegar</a>
         <button class="b1" onclick="acao('${c.id}','a_caminho')">A caminho</button>
         <button class="b2" onclick="acao('${c.id}','no_local')">No local</button>
@@ -81,16 +82,78 @@ async function render() {
 }
 window.acao = acao;
 
-// Reporta posição da equipe ao vivo (aparece no mapa da Sala).
+// Reporta posição da equipe ao vivo (aparece no mapa da Sala) e guarda em `minhaPos`
+// para usar como origem ao traçar a rota.
+let minhaPos = null;
 if (navigator.geolocation && TOKEN) {
   navigator.geolocation.watchPosition((pos) => {
-    $("pos").textContent = `sua posição: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+    minhaPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    $("pos").textContent = `sua posição: ${minhaPos.lat.toFixed(4)}, ${minhaPos.lng.toFixed(4)}`;
     fetch(`${API}/equipes/por-token/${TOKEN}/posicao`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      body: JSON.stringify({ lat: minhaPos.lat, lng: minhaPos.lng }),
     }).catch(() => {});
   }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
 }
+
+// ───────────────────────── Mini-mapa de rota (MapLibre via CDN) ───────────────
+let _map = null, _markers = [], _destino = null;
+function ensureMap() {
+  if (_map) return _map;
+  _map = new maplibregl.Map({
+    container: "mapa",
+    style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    center: [-51.96, -29.46], zoom: 12,
+  });
+  _map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  return _map;
+}
+function clearMarkers() { _markers.forEach((m) => m.remove()); _markers = []; }
+
+async function abrirRota(lat, lng, nome) {
+  if (!minhaPos) { alert("Aguardando seu GPS. Permita a localização e tente novamente."); return; }
+  _destino = { lat, lng };
+  $("navMapa").href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  $("rotaInfo").textContent = "Traçando rota…";
+  $("mapaWrap").style.display = "block";
+  const m = ensureMap();
+  setTimeout(() => m.resize(), 60); // o container acabou de ficar visível
+  try {
+    const r = await fetch(`${API}/rotas?de=${minhaPos.lat},${minhaPos.lng}&para=${lat},${lng}`);
+    if (!r.ok) throw new Error();
+    desenharRota(m, await r.json(), nome);
+  } catch {
+    $("rotaInfo").textContent = "Não foi possível traçar a rota. Use o botão Navegar.";
+  }
+}
+
+function desenharRota(m, rota, nome) {
+  const fc = { type: "FeatureCollection", features: [{ type: "Feature", geometry: rota.geometry, properties: {} }] };
+  const draw = () => {
+    if (m.getSource("rota")) {
+      m.getSource("rota").setData(fc);
+    } else {
+      m.addSource("rota", { type: "geojson", data: fc });
+      m.addLayer({ id: "rota-casing", type: "line", source: "rota",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#0c4a6e", "line-width": 9 } });
+      m.addLayer({ id: "rota-line", type: "line", source: "rota",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#38bdf8", "line-width": 5 } });
+    }
+    clearMarkers();
+    _markers.push(new maplibregl.Marker({ color: "#22c55e" }).setLngLat([minhaPos.lng, minhaPos.lat]).addTo(m));
+    _markers.push(new maplibregl.Marker({ color: "#ef4444" }).setLngLat([_destino.lng, _destino.lat]).addTo(m));
+    const coords = rota.geometry.coordinates;
+    const b = coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+    m.fitBounds(b, { padding: 70, maxZoom: 16 });
+    const km = (rota.distancia_m / 1000).toFixed(1), min = Math.round(rota.duracao_s / 60);
+    $("rotaInfo").textContent = `${nome}: ${km} km · ~${min} min`;
+  };
+  if (m.isStyleLoaded()) draw(); else m.once("load", draw);
+}
+window.abrirRota = abrirRota;
+document.getElementById("fecharMapa").onclick = () => { $("mapaWrap").style.display = "none"; };
 
 window.addEventListener("online", flushActions);
 render();

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <meta name="theme-color" content="#1e3a8a" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
   <title>SOS Campo — Equipe de Resgate</title>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -30,12 +31,38 @@
     .nav { background: #0ea5e9; grid-column: 1 / -1; }
     .b1 { background: #f59e0b; } .b2 { background: #eab308; color: #000; } .b3 { background: #16a34a; grid-column: 1 / -1; }
     .empty { padding: 60px 18px; text-align: center; color: #64748b; font-size: clamp(18px, 5vw, 22px); }
+    .b-rota { background: #0369a1; grid-column: 1 / -1; }
+    /* Overlay do mini-mapa de rota */
+    #mapaWrap { display: none; position: fixed; inset: 0; z-index: 50; background: #0b1220; }
+    #mapa { position: absolute; inset: 0; }
+    #mapaTop { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; gap: 10px; padding: 12px; }
+    #mapaTop button, #mapaTop a {
+      flex: 1; border: 0; border-radius: 14px; padding: 16px 12px; font-size: clamp(16px, 4.5vw, 20px);
+      font-weight: 900; color: #fff; text-align: center; text-decoration: none;
+    }
+    #fecharMapa { background: #334155; } #navMapa { background: #0ea5e9; }
+    #rotaInfo {
+      position: absolute; bottom: 16px; left: 12px; right: 12px; z-index: 2; text-align: center;
+      background: rgba(2,6,23,.85); color: #e2e8f0; border: 1px solid #1e3a8a; border-radius: 14px;
+      padding: 12px; font-size: clamp(16px, 4.5vw, 20px); font-weight: 700;
+    }
   </style>
 </head>
 <body>
   <header><b id="equipe">SOS Campo</b><small id="sub">carregando equipe…</small></header>
   <div class="pos" id="pos"></div>
   <div class="list" id="list"><div class="empty">Carregando chamados…</div></div>
+
+  <div id="mapaWrap">
+    <div id="mapa"></div>
+    <div id="mapaTop">
+      <button id="fecharMapa" type="button">✕ Fechar</button>
+      <a id="navMapa" target="_blank" rel="noreferrer">🧭 Navegar</a>
+    </div>
+    <div id="rotaInfo"></div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

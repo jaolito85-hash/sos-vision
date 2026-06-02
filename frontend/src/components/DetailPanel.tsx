@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import type { Chamado, Equipe } from "../types";
+import type { Chamado, Equipe, Rota } from "../types";
 import { api } from "../api";
 
 interface Props {
   chamado: Chamado | null;
+  equipes: Equipe[];
+  rota: Rota | null;
+  onRota: (r: Rota | null) => void;
   onChanged: () => void;
 }
 
-export default function DetailPanel({ chamado, onChanged }: Props) {
+export default function DetailPanel({ chamado, equipes, rota, onRota, onChanged }: Props) {
   const [sugestoes, setSugestoes] = useState<Equipe[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,6 +35,21 @@ export default function DetailPanel({ chamado, onChanged }: Props) {
       onChanged();
     } catch (e: any) {
       setErro(e.message.includes("409") ? "Já existe equipe a caminho deste chamado." : e.message);
+    } finally { setBusy(false); }
+  }
+
+  // Traça a rota da equipe mais próxima (com GPS) até a vítima.
+  async function tracarRota() {
+    if (chamado?.lat == null || chamado?.lng == null) return;
+    const comPos = equipes.filter((e) => e.lat != null && e.lng != null);
+    if (!comPos.length) { setErro("Nenhuma equipe com posição GPS para traçar a rota."); return; }
+    const d2 = (e: Equipe) => (e.lat! - chamado.lat!) ** 2 + (e.lng! - chamado.lng!) ** 2;
+    const origem = [...comPos].sort((a, b) => d2(a) - d2(b))[0];
+    setBusy(true); setErro(null);
+    try {
+      onRota(await api.rota(`${origem.lat},${origem.lng}`, `${chamado.lat},${chamado.lng}`));
+    } catch {
+      setErro("Não foi possível traçar a rota agora.");
     } finally { setBusy(false); }
   }
 
@@ -71,6 +89,21 @@ export default function DetailPanel({ chamado, onChanged }: Props) {
            className="block text-xs text-sky-400 underline mb-3 break-all">
           Abrir token-link da vítima (PWA) ↗
         </a>
+      )}
+
+      {chamado.lat != null && (
+        <div className="mb-3">
+          <button disabled={busy} onClick={tracarRota}
+            className="w-full px-2 py-1.5 rounded bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-xs font-semibold text-white">
+            🧭 Traçar rota até a vítima
+          </button>
+          {rota && (
+            <div className="flex items-center justify-between mt-1 text-xs text-slate-300">
+              <span>{(rota.distancia_m / 1000).toFixed(1)} km · ~{Math.round(rota.duracao_s / 60)} min <span className="text-slate-500">({rota.fonte})</span></span>
+              <button onClick={() => onRota(null)} className="text-slate-500 hover:text-slate-300 underline">limpar</button>
+            </div>
+          )}
+        </div>
       )}
 
       {erro && <div className="bg-red-950 text-red-300 text-xs p-2 rounded mb-2 border border-red-800">{erro}</div>}

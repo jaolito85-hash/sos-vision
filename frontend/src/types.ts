@@ -64,6 +64,13 @@ export interface Geofence {
   severidade?: string | null; // derivado das recomendações ativas
 }
 
+export interface Rota {
+  geometry: any; // GeoJSON LineString
+  distancia_m: number;
+  duracao_s: number;
+  fonte: string; // ors | osrm
+}
+
 export interface Recomendacao {
   evento_id: string;
   nome: string;

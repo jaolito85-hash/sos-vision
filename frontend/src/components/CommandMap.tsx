@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence } from "../types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Rota } from "../types";
 
 // Basemaps selecionáveis — todos sem API key.
 const STYLES: Record<string, any> = {
@@ -54,6 +54,7 @@ interface Props {
   geofences: Geofence[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  rota?: Rota | null;
 }
 
 function parsePoly(p: any): any {
@@ -97,6 +98,11 @@ function chamadosFC(chamados: Chamado[]): any {
   };
 }
 
+function rotaFC(rota?: Rota | null): any {
+  if (!rota?.geometry) return { type: "FeatureCollection", features: [] };
+  return { type: "FeatureCollection", features: [{ type: "Feature", geometry: rota.geometry, properties: {} }] };
+}
+
 function geofencesFC(geofences: Geofence[]): any {
   return {
     type: "FeatureCollection",
@@ -117,6 +123,7 @@ function addLayers(m: maplibregl.Map) {
   if (m.getSource("geofences")) return;
   m.addSource("geofences", { type: "geojson", data: geofencesFC([]) });
   m.addSource("chamados", { type: "geojson", data: chamadosFC([]) });
+  m.addSource("rota", { type: "geojson", data: rotaFC(null) });
 
   m.addLayer({
     id: "geofence-fill", type: "fill", source: "geofences",
@@ -134,6 +141,17 @@ function addLayers(m: maplibregl.Map) {
         "inundacao", "#ef4444", "alerta", "#f97316", "atencao", "#eab308", "#3b82f6"],
       "line-width": 2.5, "line-dasharray": [2, 1],
     },
+  });
+  // Rota traçada (abaixo dos chamados): contorno escuro + linha clara por cima.
+  m.addLayer({
+    id: "rota-casing", type: "line", source: "rota",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": "#0c4a6e", "line-width": 9, "line-opacity": 0.9 },
+  });
+  m.addLayer({
+    id: "rota-line", type: "line", source: "rota",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": "#38bdf8", "line-width": 5 },
   });
   m.addLayer({
     id: "chamados-heat", type: "heatmap", source: "chamados",
@@ -177,6 +195,8 @@ export default function CommandMap(props: Props) {
 
     (m.getSource("geofences") as maplibregl.GeoJSONSource).setData(geofencesFC(geofences));
     (m.getSource("chamados") as maplibregl.GeoJSONSource).setData(chamadosFC(chamados));
+    const rotaSrc = m.getSource("rota") as maplibregl.GeoJSONSource | undefined;
+    if (rotaSrc) rotaSrc.setData(rotaFC(dataRef.current.rota));
     m.setFilter("chamados-sel", ["==", ["get", "id"], selectedId ?? ""]);
 
     domMarkers.current.forEach((mk) => mk.remove());
@@ -239,6 +259,18 @@ export default function CommandMap(props: Props) {
   }, []);
 
   useEffect(() => { aplicar(); });
+
+  // Ao traçar uma rota, enquadra o mapa para mostrá-la inteira.
+  useEffect(() => {
+    const m = map.current;
+    const coords = props.rota?.geometry?.coordinates;
+    if (!m || !ready.current || !coords?.length) return;
+    const b = coords.reduce(
+      (bb: maplibregl.LngLatBounds, c: [number, number]) => bb.extend(c),
+      new maplibregl.LngLatBounds(coords[0], coords[0]),
+    );
+    m.fitBounds(b, { padding: 70, maxZoom: 16, duration: 700 });
+  }, [props.rota]);
 
   return (
     <div className="w-full h-full relative">

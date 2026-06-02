@@ -5,7 +5,7 @@ import DetailPanel from "./components/DetailPanel";
 import AlertPanel from "./components/AlertPanel";
 import { api } from "./api";
 import { connectRealtime } from "./realtime";
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota } from "./types";
 
 const SEV_ORDEM = ["normal", "atencao", "alerta", "inundacao"];
 
@@ -17,6 +17,7 @@ export default function App() {
   const [geofencesRaw, setGeofencesRaw] = useState<Geofence[]>([]);
   const [recomendacoes, setRecomendacoes] = useState<Recomendacao[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rota, setRota] = useState<Rota | null>(null);
   const [online, setOnline] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -52,6 +53,9 @@ export default function App() {
     });
     return geofencesRaw.map((g) => ({ ...g, severidade: sevPorGeo[g.id] ?? null }));
   }, [geofencesRaw, recomendacoes]);
+
+  // Trocar de chamado limpa a rota desenhada (evita rota órfã de outro chamado).
+  const selecionar = useCallback((id: string) => { setSelectedId(id); setRota(null); }, []);
 
   const selecionado = chamados.find((c) => c.id === selectedId) ?? null;
   const ativos = chamados.filter((c) =>
@@ -104,7 +108,7 @@ export default function App() {
 
       <div className="flex-1 flex min-h-0">
         <aside className="w-80 border-r border-slate-800 flex flex-col min-h-0 bg-slate-900">
-          <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={setSelectedId} />
+          <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={selecionar} />
         </aside>
 
         <main className="flex-1 min-w-0 relative">
@@ -116,12 +120,14 @@ export default function App() {
             estacoes={estacoes}
             geofences={geofences}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={selecionar}
+            rota={rota}
           />
         </main>
 
         <aside className="w-80 border-l border-slate-800 min-h-0 bg-slate-900">
-          <DetailPanel chamado={selecionado} onChanged={carregar} />
+          <DetailPanel chamado={selecionado} equipes={equipes} rota={rota}
+                       onRota={setRota} onChanged={carregar} />
         </aside>
       </div>
     </div>

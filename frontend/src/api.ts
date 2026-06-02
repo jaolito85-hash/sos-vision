@@ -1,4 +1,4 @@
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota } from "./types";
 
 const API = import.meta.env.VITE_API ?? "http://localhost:8000";
 
@@ -25,6 +25,8 @@ export const api = {
       body: JSON.stringify({ estado }),
     }).then(j<any>),
   equipes: () => fetch(`${API}/equipes`).then(j<Equipe[]>),
+  rota: (de: string, para: string) =>
+    fetch(`${API}/rotas?de=${encodeURIComponent(de)}&para=${encodeURIComponent(para)}`).then(j<Rota>),
   abrigos: () => fetch(`${API}/abrigos`).then(j<Abrigo[]>),
   estacoes: () => fetch(`${API}/hidrologia/estacoes`).then(j<Estacao[]>),
   geofences: () => fetch(`${API}/eventos/geofences`).then(j<Geofence[]>),

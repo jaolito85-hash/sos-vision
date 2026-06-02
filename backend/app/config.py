@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     CLASSIFIER_MODEL: str = "claude-haiku-4-5-20251001"
 
+    # Roteamento ("Traçar rota"). Sem chave, usa OSRM público (fallback).
+    ORS_API_KEY: str = ""   # OpenRouteService — habilita avoid de vias bloqueadas (fase 2)
+
     @property
     def cors_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
