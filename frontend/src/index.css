@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #020617; }
+.maplibregl-map { font-family: inherit; background: #0b1220; }
+/* Popups/controles do MapLibre no tema dark */
+.maplibregl-ctrl-group { background: #1e293b; }
+.maplibregl-ctrl-group button + button { border-top-color: #334155; }

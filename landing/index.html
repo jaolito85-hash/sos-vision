@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SOS VISION · Defesa Civil — Toda emergência tem coordenadas</title>
+<meta name="description" content="Sistema de coordenação de resgate em massa para enchentes e deslizamentos. Telemetria humana via WhatsApp: localiza a vítima, prioriza o resgate e salva vidas." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Bodoni:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070b16; --bg-2:#0b1220; --surface:#111a2e; --line:#1e2c47;
+    --fg:#eef2fb; --muted:#94a3c4; --faint:#5b6b8c;
+    --alert:#ef4444; --alert-deep:#b91c1c; --safe:#38bdf8; --safe-deep:#2563eb;
+    --ok:#22c55e;
+    --display:'Libre Bodoni', Georgia, serif;
+    --body:'Public Sans', system-ui, sans-serif;
+    --maxw:1140px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--fg); font-family:var(--body);
+    line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  /* textura de grão + grid de coordenadas sutil no fundo */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:64px 64px; mask-image:radial-gradient(circle at 50% 0%, #000 0%, transparent 70%);
+    opacity:.12;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px; position:relative; z-index:1}
+  .eyebrow{
+    font-size:13px; letter-spacing:.18em; text-transform:uppercase; color:var(--safe);
+    font-weight:700; display:inline-flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:""; width:22px; height:2px; background:var(--safe)}
+  h1,h2,h3{font-family:var(--display); font-weight:600; line-height:1.05; letter-spacing:-.01em}
+  .btn{
+    display:inline-flex; align-items:center; gap:9px; font-weight:700; font-size:15px;
+    padding:14px 24px; border-radius:10px; cursor:pointer; border:1px solid transparent;
+    transition:transform .15s ease, background .2s ease, border-color .2s ease;
+  }
+  .btn:focus-visible{outline:3px solid var(--safe); outline-offset:3px}
+  .btn-primary{background:var(--alert); color:#fff}
+  .btn-primary:hover{background:var(--alert-deep); transform:translateY(-2px)}
+  .btn-ghost{background:transparent; color:var(--fg); border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--safe); color:var(--safe)}
+  .btn-safe{background:var(--safe-deep); color:#fff}
+  .btn-safe:hover{background:#1d4ed8; transform:translateY(-2px)}
+
+  /* NAV */
+  nav{position:sticky; top:0; z-index:50; backdrop-filter:blur(12px);
+    background:rgba(7,11,22,.72); border-bottom:1px solid var(--line)}
+  .nav-in{max-width:var(--maxw); margin:0 auto; padding:14px 24px; display:flex; align-items:center; justify-content:space-between}
+  .brand{font-weight:800; font-size:19px; letter-spacing:-.02em}
+  .brand b{color:var(--safe)}
+  .nav-links{display:flex; gap:28px; align-items:center}
+  .nav-links a{color:var(--muted); font-size:14px; font-weight:600; transition:color .2s}
+  .nav-links a:hover{color:var(--fg)}
+  @media(max-width:780px){ .nav-links a:not(.btn){display:none} }
+
+  /* HERO */
+  .hero{position:relative; padding:clamp(64px,12vh,120px) 0 80px; overflow:hidden}
+  .hero::after{ /* linha de água subindo */
+    content:""; position:absolute; left:0; right:0; bottom:0; height:38%;
+    background:linear-gradient(to top, rgba(37,99,235,.18), rgba(37,99,235,0));
+    border-top:1px solid rgba(56,189,248,.25); z-index:0;
+    mask-image:linear-gradient(to top,#000,transparent);
+  }
+  .hero-grid{display:grid; grid-template-columns:1.15fr .85fr; gap:48px; align-items:center}
+  @media(max-width:900px){ .hero-grid{grid-template-columns:1fr; gap:36px} }
+  .hero h1{font-size:clamp(40px,6.4vw,76px); margin:22px 0 0}
+  .hero h1 .em{font-style:italic; color:var(--safe)}
+  .hero p.lead{font-size:clamp(17px,2.2vw,21px); color:var(--muted); margin:22px 0 0; max-width:38ch}
+  .hero-cta{display:flex; gap:14px; margin-top:34px; flex-wrap:wrap}
+  .hero-note{margin-top:18px; font-size:13.5px; color:var(--faint)}
+
+  /* painel "estação" decorativo no hero */
+  .gauge{
+    background:linear-gradient(160deg,var(--surface),#0c1424); border:1px solid var(--line);
+    border-radius:18px; padding:24px; box-shadow:0 30px 70px -30px rgba(0,0,0,.8)
+  }
+  .gauge-top{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--alert);box-shadow:0 0 0 4px rgba(239,68,68,.25);animation:pulse 1.6s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 12px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+  .gauge-level{font-family:var(--display); font-size:54px; line-height:1; margin:14px 0 2px; color:var(--alert)}
+  .bars{display:flex; gap:5px; height:64px; align-items:flex-end; margin:18px 0 6px}
+  .bars span{flex:1; background:var(--safe-deep); border-radius:3px 3px 0 0; opacity:.5}
+  .bars span:nth-child(n+8){background:var(--alert); opacity:.9}
+  .gauge-foot{display:flex; justify-content:space-between; font-size:12px; color:var(--faint); border-top:1px solid var(--line); padding-top:12px; margin-top:8px}
+
+  /* SEÇÕES */
+  section.block{padding:clamp(64px,10vh,110px) 0; position:relative}
+  .lead-h{font-size:clamp(30px,4.4vw,50px); margin:16px 0 0; max-width:20ch}
+  .section-sub{color:var(--muted); font-size:18px; margin-top:18px; max-width:60ch}
+
+  /* IMPACTO / números */
+  .impact{background:linear-gradient(180deg,#0a1322,#070b16); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:24px; margin-top:44px}
+  @media(max-width:820px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  .stat .n{font-family:var(--display); font-size:clamp(38px,5vw,58px); color:var(--fg); line-height:1}
+  .stat .n.red{color:var(--alert)}
+  .stat .l{color:var(--muted); font-size:14.5px; margin-top:10px}
+  .quote{margin-top:54px; border-left:3px solid var(--alert); padding:6px 0 6px 22px; font-family:var(--display); font-style:italic; font-size:clamp(20px,2.6vw,28px); color:var(--fg); max-width:46ch}
+
+  /* COMO FUNCIONA - timeline */
+  .steps{margin-top:54px; display:grid; gap:2px; border:1px solid var(--line); border-radius:16px; overflow:hidden}
+  .step{display:grid; grid-template-columns:80px 1fr; gap:22px; padding:26px 28px; background:var(--bg-2); align-items:start}
+  .step:nth-child(even){background:#0a1120}
+  .step .idx{font-family:var(--display); font-size:30px; color:var(--safe); border:1px solid var(--line); border-radius:12px; width:64px; height:64px; display:flex; align-items:center; justify-content:center}
+  .step h3{font-size:21px; color:var(--fg)}
+  .step p{color:var(--muted); font-size:15.5px; margin-top:6px; max-width:62ch}
+  .step .tag{display:inline-block; font-size:12px; font-weight:700; color:var(--safe); letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px}
+
+  /* DIFERENCIAIS - cards */
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:50px}
+  @media(max-width:900px){ .cards{grid-template-columns:1fr 1fr} }
+  @media(max-width:600px){ .cards{grid-template-columns:1fr} }
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:26px; transition:transform .2s ease, border-color .2s ease}
+  .card:hover{transform:translateY(-4px); border-color:var(--safe)}
+  .card .ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(56,189,248,.12);color:var(--safe);margin-bottom:16px}
+  .card.red .ic{background:rgba(239,68,68,.14);color:var(--alert)}
+  .card h3{font-size:19px;color:var(--fg)}
+  .card p{color:var(--muted);font-size:14.5px;margin-top:8px}
+  .card svg{width:22px;height:22px;stroke-width:1.8}
+
+  /* SALA destaque */
+  .sala{background:linear-gradient(180deg,#070b16,#0a1322)}
+  .sala-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;margin-top:40px}
+  @media(max-width:900px){ .sala-grid{grid-template-columns:1fr} }
+  .sala-mock{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#0b1220;box-shadow:0 40px 90px -40px #000}
+  .sala-mock .topbar{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center}
+  .sala-mock .topbar i{width:11px;height:11px;border-radius:50%;display:block}
+  .mock-body{height:340px;position:relative;overflow:hidden;background:#091020}
+  .mock-body svg.map{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .mpin{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px;z-index:2}
+  .mpin .d{width:15px;height:15px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);flex:none}
+  .mpin.r .d{background:var(--alert);box-shadow:0 0 0 6px rgba(239,68,68,.25)}
+  .mpin.o .d{background:#f97316}.mpin.g .d{background:var(--ok)}.mpin.b .d{background:var(--safe)}
+  .mpin .lbl{font-size:11px;font-weight:600;color:#dbe4f7;background:rgba(7,13,24,.85);padding:2px 7px;border-radius:6px;white-space:nowrap;border:1px solid var(--line)}
+  .mock-panel{position:absolute;top:14px;left:14px;width:172px;background:rgba(9,16,30,.92);border:1px solid var(--line);border-radius:10px;padding:11px;backdrop-filter:blur(4px);z-index:3}
+  .mock-panel .t{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  .mock-panel .row{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:12px;color:#cdd8ee;border-top:1px solid var(--line)}
+  .mock-panel .row:first-of-type{border-top:0}
+  .mock-panel .row b{margin-left:auto;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .mock-panel .cdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--alert);letter-spacing:.08em;margin-left:auto}
+  .live .ld{width:8px;height:8px;border-radius:50%;background:var(--alert);animation:pulse 1.6s infinite}
+
+  ul.checks{list-style:none;margin-top:22px;display:grid;gap:14px}
+  ul.checks li{display:flex;gap:12px;color:var(--muted);font-size:15.5px}
+  ul.checks svg{width:22px;height:22px;color:var(--ok);flex:none;margin-top:2px}
+
+  /* CTA final */
+  .cta-final{background:linear-gradient(135deg,#0c1d3a,#101a2e);border:1px solid var(--line);border-radius:24px;padding:clamp(36px,6vw,68px);text-align:center;margin:0 auto;position:relative;overflow:hidden}
+  .cta-final::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(56,189,248,.18),transparent 60%)}
+  .cta-final h2{font-size:clamp(30px,4.6vw,52px);position:relative}
+  .cta-final p{color:var(--muted);font-size:18px;margin:18px auto 0;max-width:54ch;position:relative}
+  .cta-final .hero-cta{justify-content:center;position:relative}
+
+  footer{border-top:1px solid var(--line);padding:40px 0;color:var(--faint);font-size:13.5px}
+  .foot-in{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease, transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .dot{animation:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <div class="brand">SOS<b>VISION</b></div>
+    <div class="nav-links">
+      <a href="#problema">O problema</a>
+      <a href="#como">Como funciona</a>
+      <a href="#tecnologia">Tecnologia</a>
+      <a class="btn btn-ghost" href="/sala/">Ver a Sala ao vivo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="reveal in">
+      <span class="eyebrow">Defesa Civil · Rio Grande do Sul</span>
+      <h1>Toda emergência tem <span class="em">coordenadas</span>. Nós as encontramos.</h1>
+      <p class="lead">Quando a água sobe, cada minuto decide quem volta para casa. O SOS VISION transforma o WhatsApp da vítima em um farol de socorro — e dá à Defesa Civil uma sala de comando que coordena o resgate sem perder ninguém.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/sala/">
+          Ver a Sala de Comando
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#como">Como funciona</a>
+      </div>
+      <p class="hero-note">Sem app para a vítima instalar. Funciona no WhatsApp que ela já tem.</p>
+    </div>
+
+    <div class="reveal in gauge" aria-hidden="true">
+      <div class="gauge-top">
+        <span>Régua do Taquari · Lajeado</span>
+        <span class="dot"></span>
+      </div>
+      <div class="gauge-level">27,5 m</div>
+      <div style="color:var(--alert);font-weight:700;font-size:13px;letter-spacing:.1em">⬤ NÍVEL DE INUNDAÇÃO</div>
+      <div class="bars">
+        <span style="height:22%"></span><span style="height:30%"></span><span style="height:38%"></span>
+        <span style="height:44%"></span><span style="height:52%"></span><span style="height:60%"></span>
+        <span style="height:68%"></span><span style="height:80%"></span><span style="height:92%"></span>
+        <span style="height:100%"></span>
+      </div>
+      <div class="gauge-foot"><span>Alerta automático disparado</span><span>178 cadastrados na área</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- PROBLEMA -->
+<section class="block impact" id="problema">
+  <div class="wrap">
+    <span class="eyebrow reveal">Maio de 2024 — a lição que não pode se repetir</span>
+    <h2 class="lead-h reveal">A tecnologia para pedir socorro já existia. Faltou quem coordenasse o resgate.</h2>
+    <p class="section-sub reveal">Na maior enchente da história do Rio Grande do Sul, o socorro foi organizado às pressas em planilhas e grupos de mensagem. O resultado: pedidos duplicados, barcos indo ao mesmo telhado, pessoas já resgatadas que continuavam na lista — e gente que ninguém encontrou a tempo.</p>
+    <div class="stats">
+      <div class="stat reveal"><div class="n red">+180</div><div class="l">vidas perdidas no RS em 2024</div></div>
+      <div class="stat reveal"><div class="n">2,3 mi</div><div class="l">de pessoas atingidas</div></div>
+      <div class="stat reveal"><div class="n">478</div><div class="l">municípios em emergência</div></div>
+      <div class="stat reveal"><div class="n">~580 mil</div><div class="l">desalojados e desabrigados</div></div>
+    </div>
+    <p class="quote reveal">“O celular estava no bolso de quase todas as vítimas. Faltava a ponte entre ele e uma sala de comando do outro lado.”</p>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section class="block" id="como">
+  <div class="wrap">
+    <span class="eyebrow reveal">Como funciona</span>
+    <h2 class="lead-h reveal">Do primeiro pingo de chuva ao abrigo seguro.</h2>
+    <div class="steps">
+      <div class="step reveal"><div class="idx">1</div><div><span class="tag">Vigilância</span><h3>O rio avisa antes de transbordar</h3><p>O sistema lê o nível dos rios e a chuva em tempo real. Ao cruzar a cota de alerta, recomenda a evacuação da área de risco — com um operador sempre decidindo, nunca um robô sozinho.</p></div></div>
+      <div class="step reveal"><div class="idx">2</div><div><span class="tag">Alerta</span><h3>Mensagem certa, para quem está na zona certa</h3><p>Um disparo no WhatsApp alcança todos os moradores cadastrados dentro do polígono de risco: “Você está bem? 1) Em casa · 2) Já saí · 3) Preciso de ajuda”.</p></div></div>
+      <div class="step reveal"><div class="idx">3</div><div><span class="tag">Localização</span><h3>Encontramos quem o endereço não acha</h3><p>Rua alagada, vítima no telhado. O link de rastreamento transmite o GPS ao vivo — sem instalar nada — e a pessoa indica se está no térreo, no andar de cima ou no telhado.</p></div></div>
+      <div class="step reveal"><div class="idx">4</div><div><span class="tag">Coordenação</span><h3>Uma equipe por chamado. Nunca duas no mesmo telhado.</h3><p>A IA prioriza por gravidade e vulnerabilidade (acamados, idosos, crianças). A sala despacha a equipe mais próxima e trava o atendimento — acabou a duplicação que travou 2024.</p></div></div>
+      <div class="step reveal"><div class="idx">5</div><div><span class="tag">Abrigo</span><h3>Resgatado e contabilizado — de verdade</h3><p>Quem é resgatado sai da fila automaticamente e é encaminhado ao abrigo mais próximo com vaga, respeitando até quem tem animais. Cada vida atendida fica registrada.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DIFERENCIAIS -->
+<section class="block impact">
+  <div class="wrap">
+    <span class="eyebrow reveal">Por que salva mais vidas</span>
+    <h2 class="lead-h reveal">Não é um app de pânico. É um sistema operacional de resgate.</h2>
+    <div class="cards">
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><h3>Zero instalação</h3><p>A vítima usa o WhatsApp que já abre todo dia. Nada de baixar app no pior momento da vida dela.</p></div>
+      <div class="card red reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21s-8-4.5-8-11a8 8 0 0 1 16 0c0 6.5-8 11-8 11z"/><circle cx="12" cy="10" r="3"/></svg></div><h3>Localização precisa</h3><p>GPS ao vivo, ponto exato e o andar/telhado onde a pessoa está. Define se vai barco, escada ou helicóptero.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Anti-duplicação</h3><p>Pedidos do mesmo ponto são fundidos e cada resgate é travado para uma única equipe. Fim dos barcos repetidos.</p></div>
+      <div class="card red reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><h3>Prioriza quem corre mais risco</h3><p>Acamados, idosos sozinhos, crianças e dependentes de oxigênio sobem ao topo da fila automaticamente.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0z"/><path d="M12 7v5l3 3"/></svg></div><h3>Alerta preventivo</h3><p>Evacuar antes da água chegar é o que mais salva. O disparo por área de risco ganha tempo precioso.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><h3>Tudo auditado (LGPD)</h3><p>Quem viu o quê, quando e o que decidiu. Protocolo rastreável para a gestão e para a justiça.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SALA / TECNOLOGIA -->
+<section class="block sala" id="tecnologia">
+  <div class="wrap">
+    <span class="eyebrow reveal">A Sala de Comando</span>
+    <h2 class="lead-h reveal">O mapa que mostra, em tempo real, onde a vida está em risco.</h2>
+    <div class="sala-grid">
+      <div class="reveal sala-mock" aria-hidden="true">
+        <div class="topbar">
+          <i style="background:#ef4444"></i><i style="background:#f59e0b"></i><i style="background:#22c55e"></i>
+          <span style="color:var(--faint);font-size:12px;margin-left:8px">Defesa Civil · Lajeado/RS</span>
+          <span class="live"><span class="ld"></span>AO VIVO</span>
+        </div>
+        <div class="mock-body">
+          <svg class="map" viewBox="0 0 600 340" preserveAspectRatio="xMidYMid slice">
+            <!-- quarteirões / ruas -->
+            <g stroke="#16233d" stroke-width="1" fill="none">
+              <path d="M70 0V340M150 0V340M235 0V340M330 0V340M420 0V340M500 0V340M560 0V340"/>
+              <path d="M0 60H600M0 130H600M0 205H600M0 280H600"/>
+              <path d="M150 130L330 205M235 0L420 130M70 205L235 280" stroke="#13203a"/>
+            </g>
+            <!-- rio Taquari -->
+            <path d="M600 25 C 480 80 440 140 395 195 C 355 245 335 300 315 340" fill="none" stroke="#1f4e74" stroke-width="22" stroke-linecap="round"/>
+            <path d="M600 25 C 480 80 440 140 395 195 C 355 245 335 300 315 340" fill="none" stroke="#2f7fb8" stroke-width="9" stroke-linecap="round" opacity=".75"/>
+            <!-- mancha de inundação acompanhando a margem -->
+            <path d="M150 175 C 215 150 300 158 355 200 C 392 230 388 292 320 305 C 240 320 150 305 112 262 C 88 234 95 196 150 175 Z"
+                  fill="rgba(239,68,68,.17)" stroke="#ef4444" stroke-width="1.6" stroke-dasharray="5 4"/>
+          </svg>
+
+          <div class="mock-panel">
+            <div class="t">Fila de resgate · 4</div>
+            <div class="row"><span class="cdot" style="background:#ef4444"></span>Seu Antônio<b>143</b></div>
+            <div class="row"><span class="cdot" style="background:#f97316"></span>Família Lima<b>115</b></div>
+            <div class="row"><span class="cdot" style="background:#ef4444"></span>Dona Inês<b>40</b></div>
+          </div>
+
+          <div class="mpin r" style="left:43%;top:46%"><span class="d"></span><span class="lbl">telhado · 4 pessoas</span></div>
+          <div class="mpin o" style="left:60%;top:62%"><span class="d"></span><span class="lbl">equipe a caminho</span></div>
+          <div class="mpin g" style="left:45%;top:80%"><span class="d"></span></div>
+          <div class="mpin r" style="left:70%;top:42%"><span class="d"></span></div>
+          <div class="mpin b" style="left:80%;top:58%"><span class="d"></span><span class="lbl">abrigo</span></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <p class="section-sub" style="margin-top:0">Sobre imagem de satélite, o operador vê a mancha de inundação, os pedidos de socorro por gravidade, a frota ao vivo e os abrigos com vaga — e despacha com um toque.</p>
+        <ul class="checks">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Mapa em tempo real com mancha de inundação e fila por prioridade</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Rastreamento GPS ao vivo da vítima, direto do WhatsApp</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> App de campo para as equipes de resgate, com navegação</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Funciona com a internet instável — buffer offline e reenvio</li>
+        </ul>
+        <div class="hero-cta">
+          <a class="btn btn-safe" href="/sala/">Abrir a demonstração ao vivo
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- META -->
+<section class="block">
+  <div class="wrap" style="text-align:center">
+    <span class="eyebrow reveal" style="justify-content:center">A métrica que importa</span>
+    <h2 class="lead-h reveal" style="margin:16px auto 0;max-width:24ch">De 12 minutos para 90 segundos entre o pedido e a equipe a caminho.</h2>
+    <p class="section-sub reveal" style="margin:18px auto 0">Cada segundo poupado numa enchente é uma chance a mais de salvar alguém. É isso que medimos — e o que a sua cidade leva para casa.</p>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="block" id="contato">
+  <div class="wrap">
+    <div class="cta-final reveal">
+      <span class="eyebrow" style="justify-content:center">Para prefeituras e Defesa Civil</span>
+      <h2>Leve o SOS VISION para a sua cidade antes da próxima cheia.</h2>
+      <p>A próxima estação chuvosa é uma questão de tempo. Prepare a sua Defesa Civil com uma sala de comando que coordena o resgate e salva vidas — comece por um piloto.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/sala/">Ver a Sala de Comando</a>
+        <a class="btn btn-ghost" href="mailto:contato@sosvision.com.br">Falar com a equipe</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <div>SOS<b style="color:var(--safe)">VISION</b> · Telemetria humana via WhatsApp</div>
+    <div>Defesa Civil · Rio Grande do Sul · Demonstração</div>
+  </div>
+</footer>
+
+<script>
+  // Reveal on scroll (respeita reduced-motion via CSS)
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  },{threshold:.12});
+  document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(Math.min(i%5,4)*60)+'ms'; io.observe(el); });
+</script>
+</body>
+</html>

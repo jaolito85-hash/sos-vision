@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>SOS Defesa Civil</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0b1220; color: #fff; min-height: 100dvh;
+      display: flex; flex-direction: column; padding: clamp(16px, 5vw, 28px);
+    }
+    h1 { font-size: clamp(26px, 7vw, 38px); margin: 8px 0 4px; font-weight: 900; }
+    .sub { color: #94a3b8; font-size: clamp(15px, 4vw, 19px); margin: 0 0 20px; }
+    label { display: block; font-size: clamp(15px, 4vw, 18px); color: #cbd5e1; margin: 14px 0 6px; font-weight: 700; }
+    input {
+      width: 100%; padding: 16px; font-size: clamp(18px, 5vw, 22px); border-radius: 14px;
+      border: 2px solid #334155; background: #1e293b; color: #fff;
+    }
+    .big-btn {
+      width: 100%; margin-top: 24px; padding: 28px; border: 0; border-radius: 22px;
+      font-size: clamp(22px, 6.5vw, 30px); font-weight: 900; color: #fff; cursor: pointer; line-height: 1.1;
+    }
+    .on { background: #16a34a; } .off { background: #dc2626; }
+    .status {
+      margin-top: 24px; background: #1e293b; border-radius: 18px; padding: 20px;
+      font-size: clamp(16px, 4.4vw, 20px);
+    }
+    .status .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; }
+    .status .row:last-child { border-bottom: 0; }
+    .val { font-weight: 900; }
+    .ok { color: #4ade80; } .warn { color: #fbbf24; } .err { color: #f87171; }
+    .plat { margin-top: 14px; font-size: clamp(13px, 3.6vw, 16px); color: #64748b; text-align: center; }
+    .hint { margin-top: 8px; font-size: clamp(13px, 3.6vw, 16px); color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h1>🛡️ SOS Defesa Civil</h1>
+  <p class="sub">Proteção contínua para você. Mesmo com o celular bloqueado.</p>
+
+  <label for="tel">Seu telefone cadastrado</label>
+  <input id="tel" type="tel" inputmode="numeric" placeholder="5551988887777" value="5551988887777" />
+
+  <label for="api">Servidor (API)</label>
+  <input id="api" type="text" value="http://10.0.2.2:8000" />
+  <div class="hint" id="apihint">No emulador Android use 10.0.2.2; no navegador use localhost:8000.</div>
+
+  <button id="btn" class="big-btn on">ATIVAR PROTEÇÃO</button>
+
+  <div class="status">
+    <div class="row"><span>Situação</span><span class="val" id="st">desativado</span></div>
+    <div class="row"><span>Pontos enviados</span><span class="val" id="sent">0</span></div>
+    <div class="row"><span>Precisão</span><span class="val" id="acc">—</span></div>
+    <div class="row"><span>Última atualização</span><span class="val" id="last">—</span></div>
+  </div>
+  <div class="plat" id="plat"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

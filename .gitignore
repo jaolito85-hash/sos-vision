@@ -1,0 +1,23 @@
+# Segredos — NUNCA versionar
+.env
+.env.local
+.env.*.local
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+venv/
+
+# Node / build
+node_modules/
+dist/
+.vite/
+
+# Capacitor (regenerável via `npx cap add android`)
+app-mobile/android/
+app-mobile/ios/
+
+# Misc
+*.log
+.DS_Store

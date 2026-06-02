@@ -1,0 +1,9 @@
+{
+  "name": "SOS Campo — Equipe de Resgate",
+  "short_name": "SOS Campo",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "icons": []
+}

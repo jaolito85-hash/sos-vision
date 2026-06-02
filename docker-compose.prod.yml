@@ -1,0 +1,66 @@
+# Stack de PRODUÇÃO (demo pública) para deploy via Coolify.
+# No Coolify: crie um recurso "Docker Compose" apontando para este arquivo, defina as
+# variáveis do .env, e associe os domínios:
+#   - serviço "frontend" (porta 80)  -> app.SEU_DOMINIO   (Sala + /vitima + /campo)
+#   - serviço "backend"  (porta 8000) -> api.SEU_DOMINIO
+# O Coolify cuida do HTTPS (Let's Encrypt) e do proxy (Traefik). Ver DEPLOY.md.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-sosvision}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sos} -d ${POSTGRES_DB:-sosvision}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    expose:
+      - "8000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./worker
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # URL pública da API — embutida no build da Sala. Defina no Coolify.
+        VITE_API: ${VITE_API:?defina a URL pública da API, ex https://api.seu-dominio.com}
+    expose:
+      - "80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

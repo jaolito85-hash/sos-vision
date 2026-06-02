@@ -1,0 +1,19 @@
+# Mantém o contexto de build pequeno e rápido (evita copiar node_modules, etc).
+**/node_modules
+**/__pycache__
+**/.venv
+**/.pytest_cache
+frontend/dist
+frontend/.vite
+app-mobile/dist
+app-mobile/android
+app-mobile/ios
+.git
+*.log
+.DS_Store
+
+# Nunca copiar segredos para dentro das imagens
+.env
+.env.*
+!.env.example
+!.env.prod.example

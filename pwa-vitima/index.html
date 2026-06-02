@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#b91c1c" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>SOS — Estou aqui</title>
+  <style>
+    :root { --gap: clamp(16px, 4vw, 28px); }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #7f1d1d; color: #fff; min-height: 100dvh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: var(--gap); text-align: center; overflow-x: hidden;
+    }
+    /* Faixa de aviso enorme — combate o "fechar a tela" */
+    .aviso {
+      width: 100%; background: #facc15; color: #000; font-weight: 900;
+      font-size: clamp(18px, 5.5vw, 28px); line-height: 1.2;
+      padding: 16px; border-radius: 16px; margin-bottom: var(--gap);
+    }
+    .pulse {
+      width: clamp(140px, 42vw, 220px); height: clamp(140px, 42vw, 220px);
+      border-radius: 50%; background: #dc2626; display: flex; align-items: center;
+      justify-content: center; font-size: clamp(64px, 20vw, 110px);
+      animation: p 1.5s infinite; margin: 8px 0 var(--gap);
+    }
+    @keyframes p { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.7)} 70%{box-shadow:0 0 0 40px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
+    h1 { font-size: clamp(28px, 8vw, 46px); margin: 0 0 8px; line-height: 1.1; font-weight: 900; }
+    .sub { color: #fee2e2; font-size: clamp(17px, 4.8vw, 24px); margin: 0 0 var(--gap); line-height: 1.3; }
+    .card {
+      background: #fff; color: #111; border-radius: 20px; padding: clamp(16px, 5vw, 26px);
+      width: 100%; max-width: 520px; box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    .row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 0; border-bottom: 2px solid #f1f5f9;
+      font-size: clamp(17px, 4.6vw, 22px);
+    }
+    .row:last-child { border-bottom: 0; }
+    .row .lbl { color: #475569; font-weight: 600; }
+    .row .val { font-weight: 900; font-size: clamp(19px, 5vw, 26px); }
+    .ok { color: #16a34a; } .warn { color: #d97706; } .err { color: #dc2626; }
+    .big { font-size: clamp(40px, 13vw, 64px); }
+    .queued { margin-top: 14px; font-size: clamp(15px, 4vw, 19px); color: #b45309; font-weight: 700; }
+    .lock { margin-top: var(--gap); font-size: clamp(15px, 4vw, 19px); color: #fde68a; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="aviso" id="aviso">⚠️ NÃO FECHE ESTA TELA<br>Deixe o celular ligado</div>
+  <div class="pulse">📍</div>
+  <h1 id="titulo">Conectando…</h1>
+  <p class="sub" id="sub">Estamos te localizando. A ajuda está chegando.</p>
+
+  <div class="card">
+    <div class="row"><span class="lbl">Situação</span><span class="val" id="status">iniciando</span></div>
+    <div class="row"><span class="lbl">Pontos enviados</span><span class="val big" id="sent">0</span></div>
+    <div class="row"><span class="lbl">Precisão do GPS</span><span class="val" id="acc">—</span></div>
+    <div class="row"><span class="lbl">Última atualização</span><span class="val" id="last">—</span></div>
+    <div class="queued" id="queued"></div>
+  </div>
+  <div class="lock" id="lock"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
