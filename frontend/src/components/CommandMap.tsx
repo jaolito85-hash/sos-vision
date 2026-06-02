@@ -118,6 +118,15 @@ function rotaFC(rota?: Rota | null): any {
   return { type: "FeatureCollection", features: [{ type: "Feature", geometry: rota.geometry, properties: {} }] };
 }
 
+function viasFC(vias?: ViaBloqueada[]): any {
+  return {
+    type: "FeatureCollection",
+    features: (vias ?? [])
+      .filter((v) => v.lat != null && v.lng != null)
+      .map((v) => ({ type: "Feature", geometry: { type: "Point", coordinates: [v.lng, v.lat] }, properties: {} })),
+  };
+}
+
 function geofencesFC(geofences: Geofence[]): any {
   return {
     type: "FeatureCollection",
@@ -139,6 +148,7 @@ function addLayers(m: maplibregl.Map) {
   m.addSource("geofences", { type: "geojson", data: geofencesFC([]) });
   m.addSource("chamados", { type: "geojson", data: chamadosFC([]) });
   m.addSource("rota", { type: "geojson", data: rotaFC(null) });
+  m.addSource("vias", { type: "geojson", data: viasFC([]) });
 
   m.addLayer({
     id: "geofence-fill", type: "fill", source: "geofences",
@@ -157,6 +167,16 @@ function addLayers(m: maplibregl.Map) {
       "line-width": 2.5, "line-dasharray": [2, 1],
     },
   });
+  // Vias bloqueadas: zona de exclusão vermelha (o trecho que as rotas contornam).
+  m.addLayer({
+    id: "vias-zona", type: "circle", source: "vias",
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 16, 34],
+      "circle-color": "rgba(239,68,68,0.25)",
+      "circle-stroke-color": "#ef4444", "circle-stroke-width": 2,
+    },
+  });
+
   // Rota traçada (abaixo dos chamados): contorno escuro + linha clara por cima.
   m.addLayer({
     id: "rota-casing", type: "line", source: "rota",
@@ -202,6 +222,7 @@ export default function CommandMap(props: Props) {
   const dataRef = useRef(props);
   dataRef.current = props;
   const [estilo, setEstilo] = useState<keyof typeof STYLES>("ruas");
+  const [legendaAberta, setLegendaAberta] = useState(true);
 
   function aplicar() {
     const m = map.current;
@@ -212,6 +233,8 @@ export default function CommandMap(props: Props) {
     (m.getSource("chamados") as maplibregl.GeoJSONSource).setData(chamadosFC(chamados));
     const rotaSrc = m.getSource("rota") as maplibregl.GeoJSONSource | undefined;
     if (rotaSrc) rotaSrc.setData(rotaFC(dataRef.current.rota));
+    const viasSrc = m.getSource("vias") as maplibregl.GeoJSONSource | undefined;
+    if (viasSrc) viasSrc.setData(viasFC(vias));
     m.setFilter("chamados-sel", ["==", ["get", "id"], selectedId ?? ""]);
 
     domMarkers.current.forEach((mk) => mk.remove());
@@ -292,9 +315,55 @@ export default function CommandMap(props: Props) {
     m.fitBounds(b, { padding: 70, maxZoom: 16, duration: 700 });
   }, [props.rota]);
 
+  const evitou = props.rota?.evitou ?? 0;
+
   return (
     <div className="w-full h-full relative">
       <div ref={container} className="w-full h-full" />
+
+      {/* Banner: rota contornando vias bloqueadas */}
+      {props.rota && evitou > 0 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-amber-600/95 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-lg border border-amber-400">
+          🚧 Rota contornando {evitou} via(s) bloqueada(s)
+        </div>
+      )}
+
+      {/* Legenda do mapa (colapsável) */}
+      <div className="absolute top-3 left-3 z-10 text-xs">
+        <button
+          onClick={() => setLegendaAberta((v) => !v)}
+          className="bg-slate-900/90 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-semibold hover:bg-slate-800"
+        >
+          {legendaAberta ? "▾ Legenda" : "▸ Legenda"}
+        </button>
+        {legendaAberta && (
+          <div className="mt-1 bg-slate-900/90 border border-slate-700 rounded-lg p-2.5 space-y-1 text-slate-300 w-52">
+            {[
+              ["#ef4444", "Chamado aguardando"],
+              ["#f97316", "Equipe a caminho"],
+              ["#eab308", "No local"],
+              ["#22c55e", "Resgatado"],
+              ["#3b82f6", "Em abrigo"],
+              ["#a855f7", "Sem contato"],
+            ].map(([cor, txt]) => (
+              <div key={txt} className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full border border-white/70" style={{ background: cor }} />
+                {txt}
+              </div>
+            ))}
+            <div className="border-t border-slate-700 my-1" />
+            <div className="flex items-center gap-2">🚤 Equipe <span className="text-slate-500">(verde=livre)</span></div>
+            <div className="flex items-center gap-2">🏠/🐾 Abrigo <span className="text-slate-500">(verm.=cheio)</span></div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(239,68,68,0.25)", border: "2px solid #ef4444" }} />
+              🚧 Via bloqueada
+            </div>
+            <div className="flex items-center gap-2"><span className="w-5 h-1 rounded" style={{ background: "#38bdf8" }} /> Rota traçada</div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm" style={{ background: "rgba(239,68,68,0.32)", border: "1px dashed #ef4444" }} /> Zona de risco</div>
+          </div>
+        )}
+      </div>
+
       <div className="absolute bottom-3 left-3 z-10 flex rounded-lg overflow-hidden shadow-lg border border-slate-700">
         {ESTILOS_UI.map((s) => (
           <button

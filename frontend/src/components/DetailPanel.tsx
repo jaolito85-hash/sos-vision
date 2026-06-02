@@ -104,7 +104,9 @@ export default function DetailPanel({ chamado, equipes, rota, onRota, onChanged 
                 <button onClick={() => onRota(null)} className="text-slate-500 hover:text-slate-300 underline">limpar</button>
               </div>
               {rota.evitou > 0 && (
-                <div className="text-amber-400 mt-0.5">🚧 desviando de {rota.evitou} via(s) bloqueada(s)</div>
+                <div className="mt-1 bg-amber-950 text-amber-300 border border-amber-700 rounded px-2 py-1 font-semibold">
+                  🚧 desviando de {rota.evitou} via(s) bloqueada(s)
+                </div>
               )}
             </div>
           )}

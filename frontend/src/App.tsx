@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import CommandMap from "./components/CommandMap";
 import QueuePanel from "./components/QueuePanel";
 import DetailPanel from "./components/DetailPanel";
+import ResourcePanel from "./components/ResourcePanel";
 import AlertPanel from "./components/AlertPanel";
 import { api } from "./api";
 import { connectRealtime } from "./realtime";
@@ -19,6 +20,7 @@ export default function App() {
   const [vias, setVias] = useState<ViaBloqueada[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rota, setRota] = useState<Rota | null>(null);
+  const [abaEsq, setAbaEsq] = useState<"chamados" | "recursos">("chamados");
   const [online, setOnline] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -109,7 +111,21 @@ export default function App() {
 
       <div className="flex-1 flex min-h-0">
         <aside className="w-80 border-r border-slate-800 flex flex-col min-h-0 bg-slate-900">
-          <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={selecionar} />
+          <div className="flex border-b border-slate-800 text-xs font-semibold shrink-0">
+            <button onClick={() => setAbaEsq("chamados")}
+              className={`flex-1 px-3 py-2 ${abaEsq === "chamados" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
+              Chamados <span className="text-slate-500">({ativos.length})</span>
+            </button>
+            <button onClick={() => setAbaEsq("recursos")}
+              className={`flex-1 px-3 py-2 ${abaEsq === "recursos" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
+              Recursos
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            {abaEsq === "chamados"
+              ? <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={selecionar} />
+              : <ResourcePanel equipes={equipes} abrigos={abrigos} />}
+          </div>
         </aside>
 
         <main className="flex-1 min-w-0 relative">
