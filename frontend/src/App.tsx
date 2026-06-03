@@ -4,10 +4,11 @@ import QueuePanel from "./components/QueuePanel";
 import DetailPanel from "./components/DetailPanel";
 import ResourcePanel from "./components/ResourcePanel";
 import HidroPanel from "./components/HidroPanel";
+import PessoasPanel from "./components/PessoasPanel";
 import AlertPanel from "./components/AlertPanel";
 import { api } from "./api";
 import { connectRealtime } from "./realtime";
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada, Broadcast, Pessoa } from "./types";
 
 const SEV_ORDEM = ["normal", "atencao", "alerta", "inundacao"];
 
@@ -19,18 +20,22 @@ export default function App() {
   const [geofencesRaw, setGeofencesRaw] = useState<Geofence[]>([]);
   const [recomendacoes, setRecomendacoes] = useState<Recomendacao[]>([]);
   const [vias, setVias] = useState<ViaBloqueada[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rota, setRota] = useState<Rota | null>(null);
-  const [abaEsq, setAbaEsq] = useState<"chamados" | "recursos" | "clima">("chamados");
+  const [abaEsq, setAbaEsq] = useState<"chamados" | "recursos" | "clima" | "pessoas">("chamados");
   const [online, setOnline] = useState(false);
 
   const carregar = useCallback(async () => {
-    const [c, e, a, est, gf, rec, vb] = await Promise.all([
+    const [c, e, a, est, gf, rec, vb, bc, pp] = await Promise.all([
       api.listarChamados(), api.equipes(), api.abrigos(),
       api.estacoes(), api.geofences(), api.recomendacoes(), api.viasBloqueadas(),
+      api.broadcasts(), api.pessoas(),
     ]);
     setChamados(c); setEquipes(e); setAbrigos(a);
     setEstacoes(est); setGeofencesRaw(gf); setRecomendacoes(rec); setVias(vb);
+    setBroadcasts(bc); setPessoas(pp);
   }, []);
 
   useEffect(() => {
@@ -125,18 +130,24 @@ export default function App() {
               className={`flex-1 px-3 py-2 ${abaEsq === "clima" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
               Clima/Rios
             </button>
+            <button onClick={() => setAbaEsq("pessoas")}
+              className={`flex-1 px-3 py-2 ${abaEsq === "pessoas" ? "bg-slate-800 text-sky-400" : "text-slate-400 hover:bg-slate-800/50"}`}>
+              Pessoas
+            </button>
           </div>
           <div className="flex-1 min-h-0">
             {abaEsq === "chamados"
               ? <QueuePanel chamados={chamados} selectedId={selectedId} onSelect={selecionar} />
               : abaEsq === "recursos"
               ? <ResourcePanel equipes={equipes} abrigos={abrigos} />
-              : <HidroPanel estacoes={estacoes} />}
+              : abaEsq === "clima"
+              ? <HidroPanel estacoes={estacoes} />
+              : <PessoasPanel pessoas={pessoas} geofences={geofences} onChanged={carregar} />}
           </div>
         </aside>
 
         <main className="flex-1 min-w-0 relative">
-          <AlertPanel recomendacoes={recomendacoes} onConfirmado={carregar} />
+          <AlertPanel recomendacoes={recomendacoes} broadcasts={broadcasts} onConfirmado={carregar} />
           <CommandMap
             chamados={chamados}
             equipes={equipes}

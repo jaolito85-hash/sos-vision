@@ -31,6 +31,16 @@ async def vias_bloqueadas():
     return [dict(r) for r in rows]
 
 
+@router.get("/broadcasts")
+async def broadcasts_lista():
+    """Disparos recentes com alcance (enviados/entregues/respondidos) — rastreamento na Sala."""
+    rows = await db.fetch(
+        """SELECT id, evento_id, geofence_id, enviados, entregues, respondidos, criado_em
+           FROM broadcasts ORDER BY criado_em DESC LIMIT 200"""
+    )
+    return [dict(r) for r in rows]
+
+
 class BroadcastIn(BaseModel):
     geofence_id: str
     template: str = "alerta_enchente"

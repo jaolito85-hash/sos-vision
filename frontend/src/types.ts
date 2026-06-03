@@ -86,6 +86,27 @@ export interface ViaBloqueada {
   ts: string;
 }
 
+export interface Broadcast {
+  id: string;
+  evento_id: string | null;
+  geofence_id: string;
+  enviados: number;
+  entregues: number;
+  respondidos: number;
+  criado_em: string;
+}
+
+export interface Pessoa {
+  id: string;
+  telefone: string;
+  nome: string | null;
+  lat: number | null;
+  lng: number | null;
+  vulnerabilidades: string[];
+  tem_pets: boolean;
+  geofence_id: string | null;
+}
+
 export interface Recomendacao {
   evento_id: string;
   nome: string;

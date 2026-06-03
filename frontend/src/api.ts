@@ -1,4 +1,4 @@
-import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada } from "./types";
+import type { Chamado, Equipe, Abrigo, Estacao, Geofence, Recomendacao, Rota, ViaBloqueada, Broadcast, Pessoa } from "./types";
 
 const API = import.meta.env.VITE_API ?? "http://localhost:8000";
 
@@ -32,6 +32,10 @@ export const api = {
   geofences: () => fetch(`${API}/eventos/geofences`).then(j<Geofence[]>),
   viasBloqueadas: () => fetch(`${API}/eventos/vias-bloqueadas`).then(j<ViaBloqueada[]>),
   recomendacoes: () => fetch(`${API}/hidrologia/recomendacoes`).then(j<Recomendacao[]>),
+  broadcasts: () => fetch(`${API}/eventos/broadcasts`).then(j<Broadcast[]>),
+  pessoas: () => fetch(`${API}/pessoas`).then(j<Pessoa[]>),
+  criarPessoa: (p: Partial<Pessoa>) =>
+    fetch(`${API}/pessoas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }).then(j<{ ok: boolean; id: string }>),
   broadcast: (geofence_id: string, evento_id?: string) =>
     fetch(`${API}/eventos/broadcast`, {
       method: "POST",

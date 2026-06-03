@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Recomendacao } from "../types";
+import type { Recomendacao, Broadcast } from "../types";
 import { api } from "../api";
 
 const SEV: Record<string, { rotulo: string; cls: string; icone: string }> = {
@@ -10,10 +10,11 @@ const SEV: Record<string, { rotulo: string; cls: string; icone: string }> = {
 
 interface Props {
   recomendacoes: Recomendacao[];
+  broadcasts: Broadcast[];
   onConfirmado: () => void;
 }
 
-export default function AlertPanel({ recomendacoes, onConfirmado }: Props) {
+export default function AlertPanel({ recomendacoes, broadcasts, onConfirmado }: Props) {
   const [disparados, setDisparados] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -36,7 +37,8 @@ export default function AlertPanel({ recomendacoes, onConfirmado }: Props) {
     <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[min(680px,92%)] space-y-2">
       {recomendacoes.map((r) => {
         const sev = SEV[r.severidade] ?? SEV.alerta;
-        const enviados = disparados[r.evento_id];
+        const bc = broadcasts.find((b) => b.evento_id === r.evento_id);
+        const enviados = disparados[r.evento_id] ?? bc?.enviados;
         return (
           <div key={r.evento_id}
             className={`text-white rounded-xl border-2 shadow-2xl backdrop-blur px-4 py-3 ${sev.cls}`}>
@@ -58,8 +60,9 @@ export default function AlertPanel({ recomendacoes, onConfirmado }: Props) {
                   {busy === r.evento_id ? "Enviando…" : "Confirmar e disparar broadcast"}
                 </button>
               ) : (
-                <span className="shrink-0 bg-black/30 rounded-lg px-3 py-2 text-sm font-bold">
-                  ✓ Alerta enviado a {enviados}
+                <span className="shrink-0 bg-black/30 rounded-lg px-3 py-2 text-sm font-bold text-right">
+                  ✓ {enviados} enviados
+                  {bc && <div className="text-xs font-normal opacity-90">{bc.respondidos} responderam</div>}
                 </span>
               )}
             </div>
