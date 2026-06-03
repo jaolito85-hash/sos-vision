@@ -9,23 +9,40 @@ interface Props {
 }
 
 export default function PessoasPanel({ pessoas, geofences, onChanged }: Props) {
-  const [f, setF] = useState({ nome: "", telefone: "", lat: "", lng: "", geofence_id: "", vuln: "", pet: false });
+  const vazio = { nome: "", telefone: "", endereco: "", lat: null as number | null, lng: null as number | null, geofence_id: "", vuln: "", pet: false };
+  const [f, setF] = useState(vazio);
   const [busy, setBusy] = useState(false);
+  const [geo, setGeo] = useState<"idle" | "buscando" | "ok" | "erro">("idle");
   const [erro, setErro] = useState<string | null>(null);
+
+  // Geocodificação: endereço → lat/lng (Nominatim/OpenStreetMap, grátis, sem chave).
+  async function localizar() {
+    if (!f.endereco.trim()) { setErro("Digite o endereço primeiro."); return; }
+    setGeo("buscando"); setErro(null);
+    try {
+      const q = encodeURIComponent(f.endereco + ", RS, Brasil");
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`,
+        { headers: { "Accept-Language": "pt-BR" } });
+      const arr = await r.json();
+      if (!arr.length) { setGeo("erro"); setErro("Endereço não encontrado. Tente incluir cidade/bairro."); return; }
+      setF((s) => ({ ...s, lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon) }));
+      setGeo("ok");
+    } catch { setGeo("erro"); setErro("Falha ao localizar. Verifique a conexão."); }
+  }
 
   async function salvar() {
     if (!f.telefone.trim()) { setErro("Telefone é obrigatório."); return; }
+    if (f.lat == null && !f.geofence_id) { setErro("Localize o endereço ou escolha a área de risco."); return; }
     setBusy(true); setErro(null);
     try {
       await api.criarPessoa({
-        telefone: f.telefone.trim(), nome: f.nome.trim() || null,
-        lat: f.lat ? parseFloat(f.lat) : null, lng: f.lng ? parseFloat(f.lng) : null,
-        geofence_id: f.geofence_id || null, tem_pets: f.pet,
+        telefone: f.telefone.trim(), nome: f.nome.trim() || null, endereco: f.endereco.trim() || null,
+        lat: f.lat, lng: f.lng, geofence_id: f.geofence_id || null, tem_pets: f.pet,
         vulnerabilidades: f.vuln ? f.vuln.split(",").map((s) => s.trim()).filter(Boolean) : [],
-      });
-      setF({ nome: "", telefone: "", lat: "", lng: "", geofence_id: "", vuln: "", pet: false });
+      } as Partial<Pessoa>);
+      setF(vazio); setGeo("idle");
       onChanged();
-    } catch (e: any) { setErro("Falha ao cadastrar."); }
+    } catch { setErro("Falha ao cadastrar."); }
     finally { setBusy(false); }
   }
 
@@ -37,15 +54,22 @@ export default function PessoasPanel({ pessoas, geofences, onChanged }: Props) {
         <input className={inp} placeholder="Nome" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
         <input className={inp} placeholder="Telefone (5551...)" value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} />
         <div className="flex gap-1.5">
-          <input className={inp} placeholder="lat" value={f.lat} onChange={(e) => setF({ ...f, lat: e.target.value })} />
-          <input className={inp} placeholder="lng" value={f.lng} onChange={(e) => setF({ ...f, lng: e.target.value })} />
+          <input className={inp} placeholder="Endereço (rua, nº, bairro, cidade)" value={f.endereco}
+            onChange={(e) => { setF({ ...f, endereco: e.target.value }); setGeo("idle"); }} />
+          <button onClick={localizar} disabled={geo === "buscando"}
+            className="shrink-0 bg-slate-700 hover:bg-slate-600 rounded px-2 text-xs whitespace-nowrap">📍 Localizar</button>
         </div>
+        {geo === "buscando" && <div className="text-[11px] text-slate-400">buscando endereço…</div>}
+        {geo === "ok" && f.lat != null && (
+          <div className="text-[11px] text-green-400">✓ localizado ({f.lat.toFixed(4)}, {f.lng!.toFixed(4)})</div>
+        )}
         <select className={inp} value={f.geofence_id} onChange={(e) => setF({ ...f, geofence_id: e.target.value })}>
-          <option value="">— área de risco —</option>
+          <option value="">— área de risco (bairro) —</option>
           {geofences.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
         <input className={inp} placeholder="vulnerabilidades (ex: idoso_so, acamado)" value={f.vuln} onChange={(e) => setF({ ...f, vuln: e.target.value })} />
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={f.pet} onChange={(e) => setF({ ...f, pet: e.target.checked })} /> Tem pets</label>
+        <p className="text-[11px] text-slate-500">Digite o endereço e toque em <b>Localizar</b> — o sistema acha as coordenadas. Ou escolha só a área de risco.</p>
         {erro && <div className="text-red-400 text-xs">{erro}</div>}
         <button onClick={salvar} disabled={busy} className="w-full bg-sky-700 hover:bg-sky-600 disabled:opacity-50 rounded px-2 py-1.5 text-xs font-semibold text-white">
           {busy ? "Salvando…" : "Cadastrar"}

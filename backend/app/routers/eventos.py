@@ -56,7 +56,7 @@ async def broadcast(inp: BroadcastIn):
         raise HTTPException(404, "Geofence não encontrado")
 
     pessoas = await db.fetch(
-        "SELECT telefone, lat, lng FROM pessoas_protegidas WHERE tenant_id=$1 AND lat IS NOT NULL",
+        "SELECT telefone, lat, lng, geofence_id FROM pessoas_protegidas WHERE tenant_id=$1",
         gf["tenant_id"],
     )
     poligono = gf["poligono"]
@@ -64,7 +64,17 @@ async def broadcast(inp: BroadcastIn):
         import json
         poligono = json.loads(poligono)
 
-    alvos = [p for p in pessoas if ponto_em_poligono(p["lat"], p["lng"], poligono)]
+    # Alvo = quem está DENTRO do polígono (tem coordenada) OU quem escolheu esta
+    # área de risco (geofence) no cadastro, mesmo sem lat/lng. Dedup por telefone.
+    alvos, vistos = [], set()
+    for p in pessoas:
+        if p["telefone"] in vistos:
+            continue
+        dentro = p["lat"] is not None and ponto_em_poligono(p["lat"], p["lng"], poligono)
+        por_area = str(p["geofence_id"]) == inp.geofence_id
+        if dentro or por_area:
+            alvos.append(p)
+            vistos.add(p["telefone"])
     ch = get_channel()
     texto = ("⚠️ Alerta da Defesa Civil: cheia forte prevista para sua região. "
              "Você está bem? 1) Em casa seguro  2) Já saí  3) PRECISO DE AJUDA")
