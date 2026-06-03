@@ -44,7 +44,8 @@ export default function App() {
     const disconnect = connectRealtime((ev) => {
       setOnline(true);
       if (["chamado_novo", "chamado_estado", "ponto_gps", "equipe_pos", "abrigo_update",
-           "fila_repontuada", "hidro_leitura", "recomendacao_evacuacao", "via_bloqueada"].includes(ev.type)) {
+           "fila_repontuada", "hidro_leitura", "recomendacao_evacuacao", "recomendacao_encerrada",
+           "hidro_previsao", "via_bloqueada"].includes(ev.type)) {
         carregar().catch(() => {});
       }
     });

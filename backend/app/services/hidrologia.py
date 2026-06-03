@@ -31,6 +31,35 @@ def escalou(antiga: str, nova: str) -> bool:
     return NIVEIS.index(nova) > NIVEIS.index(antiga)
 
 
+def _pior(a: str | None, b: str | None) -> str:
+    """Maior severidade entre dois sinais (cota da régua e previsão climática)."""
+    a, b = a or "normal", b or "normal"
+    return a if NIVEIS.index(a) >= NIVEIS.index(b) else b
+
+
+async def _desescalar(est) -> bool:
+    """Encerra o evento ativo da geofence quando o risco normalizou (< alerta).
+    A recomendação some da Sala (o GET /recomendacoes só lista eventos ativos)."""
+    if not est["geofence_id"]:
+        return False
+    ev = await db.fetchrow(
+        "SELECT id FROM eventos WHERE geofence_impacto=$1 AND status='ativo'", est["geofence_id"]
+    )
+    if not ev:
+        return False
+    await db.execute(
+        "UPDATE eventos SET status='encerrado', encerrado_em=now() WHERE id=$1", ev["id"]
+    )
+    await db.execute(
+        "INSERT INTO eventos_audit (tenant_id, ator, acao, alvo) VALUES ($1,$2,$3,$4)",
+        est["tenant_id"], "sistema", "evento_normalizado", str(ev["id"]),
+    )
+    await hub.publish("recomendacao_encerrada", {
+        "evento_id": str(ev["id"]), "geofence_id": str(est["geofence_id"]),
+    })
+    return True
+
+
 def classificar_clima(chuva_mm: float, tendencia: str | None) -> str:
     """Severidade PREVENTIVA a partir da chuva prevista (24h) e da tendência da
     vazão do rio. Limiares iniciais — a Defesa Civil calibra na implantação."""
@@ -78,6 +107,8 @@ async def ingerir_previsao(estacao_id, chuva_mm: float, vazao: float | None,
     if subiu and prev_nova in ("alerta", "inundacao"):
         est2 = await db.fetchrow("SELECT * FROM estacoes_hidrologicas WHERE id=$1", estacao_id)
         evento_id = await _processar_gatilho(est2, prev_nova)
+    elif NIVEIS.index(_pior(prev_nova, est["severidade"])) < NIVEIS.index("alerta"):
+        await _desescalar(est)  # risco efetivo normalizou → encerra evento ativo
 
     return {
         "prev_severidade": prev_nova, "anterior": prev_antiga, "escalou": subiu,
@@ -113,6 +144,8 @@ async def ingerir_leitura(estacao_id, valor: float) -> dict:
     evento_id = None
     if subiu and sev_nova in ("alerta", "inundacao"):
         evento_id = await _processar_gatilho(est, sev_nova)
+    elif NIVEIS.index(_pior(sev_nova, est["prev_severidade"])) < NIVEIS.index("alerta"):
+        await _desescalar(est)  # risco efetivo normalizou → encerra evento ativo
 
     return {
         "severidade": sev_nova, "anterior": sev_antiga, "escalou": subiu,
